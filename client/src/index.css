@@ -114,7 +114,7 @@
   }
   
   .product-card {
-    @apply bg-card border border-border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:border-primary hover:shadow-lg;
+    @apply bg-card border border-border rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-primary hover:shadow-lg hover:scale-105 active:scale-95 active:bg-accent min-h-[140px] touch-manipulation;
   }
   
   .cart-item {
@@ -122,7 +122,7 @@
   }
   
   .payment-btn {
-    @apply w-full py-4 px-6 text-lg font-semibold rounded-lg transition-colors duration-200;
+    @apply w-full py-5 px-6 text-lg font-semibold rounded-lg transition-all duration-200 active:scale-95 hover:scale-105 min-h-[56px] touch-manipulation;
   }
   
   .number-pad-btn {
@@ -139,6 +139,18 @@
   
   .status-offline {
     @apply bg-red-100 text-red-800;
+  }
+
+  .touch-btn {
+    @apply min-h-[48px] min-w-[48px] transition-all duration-200 active:scale-95 active:bg-accent hover:scale-105 touch-manipulation;
+  }
+  
+  .touch-btn-sm {
+    @apply min-h-[44px] min-w-[44px] transition-all duration-200 active:scale-95 active:bg-accent hover:scale-105 touch-manipulation;
+  }
+  
+  .category-btn {
+    @apply px-6 py-3 text-base font-medium min-h-[48px] transition-all duration-200 active:scale-95 hover:scale-105 touch-manipulation;
   }
   
   .stat-card {

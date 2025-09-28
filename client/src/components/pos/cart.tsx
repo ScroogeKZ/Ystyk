@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Minus, Plus, CreditCard, Banknote } from "lucide-react";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import { useQuery } from "@tanstack/react-query";
+import { useFormatters } from "@/i18n/utils";
 import type { Customer } from "@shared/schema";
 
 export default function Cart() {
@@ -16,6 +17,8 @@ export default function Cart() {
     clearCart, 
     openPaymentModal 
   } = usePOSStore();
+  
+  const { formatCurrency } = useFormatters();
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
@@ -42,12 +45,11 @@ export default function Cart() {
           {cart.length > 0 && (
             <Button
               variant="ghost"
-              size="sm"
               onClick={clearCart}
-              className="text-destructive hover:text-destructive/80"
+              className="text-destructive hover:text-destructive/80 touch-btn-sm"
               data-testid="clear-cart"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
             </Button>
           )}
         </div>
@@ -75,38 +77,38 @@ export default function Cart() {
             <p className="text-muted-foreground">Корзина пуста</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {cart.map((item) => (
               <div key={item.id} className="cart-item" data-testid={`cart-item-${item.id}`}>
                 <div className="flex-1">
-                  <h4 className="font-medium text-card-foreground">{item.name}</h4>
-                  <p className="text-sm text-muted-foreground">₽{item.price}</p>
+                  <h4 className="font-medium text-card-foreground text-lg mb-1">{item.name}</h4>
+                  <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="touch-btn-sm"
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
                     disabled={item.quantity <= 1}
                     data-testid={`decrease-${item.id}`}
                   >
-                    <Minus className="w-3 h-3" />
+                    <Minus className="w-5 h-5" />
                   </Button>
-                  <span className="w-8 text-center font-medium" data-testid={`quantity-${item.id}`}>
+                  <span className="w-10 text-center font-medium text-lg" data-testid={`quantity-${item.id}`}>
                     {item.quantity}
                   </span>
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="touch-btn-sm"
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
                     disabled={item.quantity >= item.stock}
                     data-testid={`increase-${item.id}`}
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-5 h-5" />
                   </Button>
                 </div>
-                <div className="w-16 text-right font-bold text-card-foreground">
-                  ₽{(item.price * item.quantity).toFixed(2)}
+                <div className="w-20 text-right font-bold text-card-foreground text-lg">
+                  {formatCurrency(item.price * item.quantity)}
                 </div>
               </div>
             ))}
@@ -117,29 +119,29 @@ export default function Cart() {
       {/* Cart Summary */}
       {cart.length > 0 && (
         <div className="p-6 border-t border-border">
-          <div className="space-y-2 mb-4">
-            <div className="flex justify-between text-card-foreground">
+          <div className="space-y-3 mb-6">
+            <div className="flex justify-between text-card-foreground text-lg">
               <span>Подытог:</span>
-              <span data-testid="subtotal">₽{subtotal.toFixed(2)}</span>
+              <span data-testid="subtotal">{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-card-foreground">
+            <div className="flex justify-between text-card-foreground text-lg">
               <span>Налог:</span>
-              <span data-testid="tax">₽{tax.toFixed(2)}</span>
+              <span data-testid="tax">{formatCurrency(tax)}</span>
             </div>
-            <div className="flex justify-between text-xl font-bold border-t border-border pt-2 text-card-foreground">
+            <div className="flex justify-between text-xl font-bold border-t border-border pt-3 text-card-foreground">
               <span>Итого:</span>
-              <span data-testid="total">₽{total.toFixed(2)}</span>
+              <span data-testid="total">{formatCurrency(total)}</span>
             </div>
           </div>
           
           {/* Payment Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <Button
               className="payment-btn bg-green-600 hover:bg-green-700 text-white"
               onClick={handleCashPayment}
               data-testid="cash-payment"
             >
-              <Banknote className="w-4 h-4 mr-2" />
+              <Banknote className="w-5 h-5 mr-3" />
               Наличные
             </Button>
             <Button
@@ -147,7 +149,7 @@ export default function Cart() {
               onClick={handleCardPayment}
               data-testid="card-payment"
             >
-              <CreditCard className="w-4 h-4 mr-2" />
+              <CreditCard className="w-5 h-5 mr-3" />
               Карта
             </Button>
           </div>

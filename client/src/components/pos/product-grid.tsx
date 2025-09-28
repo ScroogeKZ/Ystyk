@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Barcode, Coffee, Cookie, GlassWater, Sandwich, IceCream, PillBottle } from "lucide-react";
 import { usePOSStore } from "@/hooks/use-pos-store";
+import { useFormatters } from "@/i18n/utils";
 import type { ProductWithCategory, Category } from "@shared/schema";
 
 const iconMap: Record<string, any> = {
@@ -18,6 +19,7 @@ export default function ProductGrid() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { addToCart } = usePOSStore();
+  const { formatCurrency } = useFormatters();
 
   const { data: products = [], isLoading } = useQuery<ProductWithCategory[]>({
     queryKey: ["/api/products"],
@@ -75,10 +77,10 @@ export default function ProductGrid() {
         </div>
         
         {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-3 overflow-x-auto">
           <Button
             variant={selectedCategory === "all" ? "default" : "outline"}
-            size="sm"
+            className="category-btn"
             onClick={() => setSelectedCategory("all")}
             data-testid="category-all"
           >
@@ -88,7 +90,7 @@ export default function ProductGrid() {
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? "default" : "outline"}
-              size="sm"
+              className="category-btn"
               onClick={() => setSelectedCategory(category.id)}
               data-testid={`category-${category.id}`}
             >
@@ -100,7 +102,7 @@ export default function ProductGrid() {
       
       {/* Products Grid */}
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="grid grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map((product) => {
             const Icon = iconMap[product.category?.name || "default"] || iconMap.default;
             return (
@@ -110,11 +112,11 @@ export default function ProductGrid() {
                 onClick={() => handleAddToCart(product)}
                 data-testid={`product-${product.id}`}
               >
-                <div className="aspect-square bg-muted rounded-lg mb-3 flex items-center justify-center">
-                  <Icon className="text-muted-foreground text-2xl w-8 h-8" />
+                <div className="aspect-square bg-muted rounded-lg mb-4 flex items-center justify-center">
+                  <Icon className="text-muted-foreground w-12 h-12" />
                 </div>
-                <h3 className="font-semibold mb-1 text-card-foreground">{product.name}</h3>
-                <p className="text-2xl font-bold text-primary">₽{product.price}</p>
+                <h3 className="font-semibold mb-2 text-card-foreground text-lg">{product.name}</h3>
+                <p className="text-xl font-bold text-primary mb-1">{formatCurrency(parseFloat(product.price))}</p>
                 <p className="text-xs text-muted-foreground">
                   В наличии: {product.stock}
                   {product.stock <= 5 && (

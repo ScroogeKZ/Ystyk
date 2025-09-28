@@ -1,0 +1,96 @@
+# Point of Sale (POS) System
+
+## Overview
+This is a comprehensive Point of Sale system built with React/TypeScript frontend and Express/Node.js backend. The application features a modern interface for managing retail operations including sales, inventory, customer management, returns, and analytics.
+
+## Recent Changes
+- **September 28, 2025**: Successfully imported GitHub project to Replit environment
+  - Configured development environment with proper port settings (5000)
+  - Updated browserslist database to eliminate warnings
+  - Set up deployment configuration for autoscale deployment
+  - Verified all core functionality is working
+
+## Project Architecture
+
+### Frontend (client/)
+- **Framework**: React 18 + TypeScript with Vite
+- **UI Library**: shadcn/ui components with Radix UI primitives
+- **Styling**: TailwindCSS with custom animations
+- **State Management**: Zustand for POS store, TanStack Query for server state
+- **Routing**: Wouter for client-side routing
+- **Internationalization**: Custom i18n system with Russian language support
+
+### Backend (server/)
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM (using in-memory storage in development)
+- **API**: RESTful API with comprehensive endpoints for all POS operations
+- **Development**: tsx for TypeScript execution in development
+
+### Key Features
+- **Sales Management**: Complete transaction processing with receipt generation
+- **Inventory Management**: Product catalog, stock tracking, category management
+- **Customer Management**: Customer profiles with loyalty points system
+- **Returns & Refunds**: Full return processing capability
+- **Shift Management**: User shifts with cash reconciliation
+- **Analytics**: Sales reporting and performance metrics
+- **Multi-language Support**: Interface available in multiple languages
+- **Hardware Integration**: Barcode scanner and receipt printer support
+- **Offline Mode**: Capability for offline transactions
+
+### Database Schema
+- Users, Categories, Products, Customers
+- Shifts, Transactions, Transaction Items
+- Returns, Return Items
+- Comprehensive relationships and constraints
+
+## Development Setup
+
+### Running Locally
+```bash
+npm run dev
+```
+- Starts development server on port 5000
+- Backend API available at `/api/*` endpoints
+- Frontend served by Vite with HMR enabled
+
+### Building for Production
+```bash
+npm run build
+```
+- Builds frontend assets to `dist/public/`
+- Compiles backend server to `dist/index.js`
+
+### Deployment
+- Configured for Replit autoscale deployment
+- Build command: `npm run build`
+- Start command: `npm run start`
+
+## Configuration Notes
+- Server configured to listen on 0.0.0.0:5000 for Replit compatibility
+- Vite configured with `allowedHosts: true` for proxy support
+- Development and production modes properly separated
+- All necessary Replit plugins configured for optimal development experience
+
+## File Structure
+```
+├── client/           # Frontend React application
+│   ├── src/
+│   │   ├── components/   # UI components
+│   │   ├── hooks/       # Custom React hooks
+│   │   ├── i18n/        # Internationalization
+│   │   ├── lib/         # Utilities and query client
+│   │   └── pages/       # Page components
+├── server/           # Backend Express application
+│   ├── index.ts     # Main server entry point
+│   ├── routes.ts    # API route definitions
+│   ├── storage.ts   # Data storage interface
+│   └── vite.ts      # Vite development setup
+├── shared/          # Shared TypeScript schemas
+└── attached_assets/ # Static assets
+```
+
+## User Preferences
+- Full-stack TypeScript development preferred
+- Modern React patterns with hooks and functional components
+- Comprehensive type safety with Zod schemas
+- Clean, maintainable code structure
