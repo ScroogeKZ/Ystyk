@@ -272,7 +272,7 @@ export default function InventoryTab() {
                       </div>
                     </TableCell>
                     <TableCell className="text-card-foreground">{product.sku}</TableCell>
-                    <TableCell className="font-semibold text-card-foreground">₽{product.price}</TableCell>
+                    <TableCell className="font-semibold text-card-foreground">₸{product.price}</TableCell>
                     <TableCell className="text-card-foreground">{product.stock}</TableCell>
                     <TableCell>
                       {product.stock > 10 ? (

@@ -286,7 +286,7 @@ export default function ShiftTab() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-xl font-bold text-card-foreground" data-testid="starting-cash">
-                    ₽{parseFloat(currentShift.startingCash).toFixed(2)}
+                    ₸{parseFloat(currentShift.startingCash).toFixed(2)}
                   </p>
                 </CardContent>
               </Card>
@@ -297,7 +297,7 @@ export default function ShiftTab() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-xl font-bold text-primary" data-testid="current-sales">
-                    ₽{shiftSummary?.totalSales || "0.00"}
+                    ₸{shiftSummary?.totalSales || "0.00"}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {shiftSummary?.totalTransactions || 0} транзакций
@@ -352,7 +352,7 @@ export default function ShiftTab() {
                           <p className={`font-semibold ${
                             transaction.status === "refunded" ? "text-red-600" : "text-card-foreground"
                           }`}>
-                            {transaction.status === "refunded" ? "-" : ""}₽{transaction.total}
+                            {transaction.status === "refunded" ? "-" : ""}₸{transaction.total}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {transaction.paymentMethod === "cash" ? "Наличные" : "Карта"}

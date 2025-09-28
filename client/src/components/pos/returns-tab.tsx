@@ -133,7 +133,7 @@ export default function ReturnsTab() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold text-card-foreground">₽{foundTransaction.total}</p>
+                    <p className="text-xl font-bold text-card-foreground">₸{foundTransaction.total}</p>
                     <Badge variant="secondary">{foundTransaction.paymentMethod === "cash" ? "Наличные" : "Карта"}</Badge>
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export default function ReturnsTab() {
                   {foundTransaction.items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span className="text-card-foreground">{item.product.name} × {item.quantity}</span>
-                      <span className="text-card-foreground">₽{item.totalPrice}</span>
+                      <span className="text-card-foreground">₸{item.totalPrice}</span>
                     </div>
                   ))}
                 </div>
@@ -183,7 +183,7 @@ export default function ReturnsTab() {
                       <p className="text-sm text-muted-foreground">{returnItem.reason}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-red-600">-₽{returnItem.refundAmount}</p>
+                      <p className="font-semibold text-red-600">-₸{returnItem.refundAmount}</p>
                       <Badge variant="destructive">Возврат</Badge>
                     </div>
                   </div>

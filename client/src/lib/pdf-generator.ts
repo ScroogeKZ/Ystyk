@@ -64,30 +64,30 @@ export const generateReceiptPDF = (transaction: TransactionWithItems) => {
     yPosition += lineHeight;
     
     // Item details and total
-    const details = `₽${item.unitPrice} × ${item.quantity}`;
-    yPosition = addLeftRightText(details, `₽${item.totalPrice}`, yPosition);
+    const details = `₸${item.unitPrice} × ${item.quantity}`;
+    yPosition = addLeftRightText(details, `₸${item.totalPrice}`, yPosition);
   });
   
   yPosition = addLine(yPosition);
   
   // Totals
-  yPosition = addLeftRightText('Подытог:', `₽${transaction.subtotal}`, yPosition);
-  yPosition = addLeftRightText('Налог (10%):', `₽${transaction.tax}`, yPosition);
+  yPosition = addLeftRightText('Подытог:', `₸${transaction.subtotal}`, yPosition);
+  yPosition = addLeftRightText('Налог (10%):', `₸${transaction.tax}`, yPosition);
   
   yPosition = addLine(yPosition);
   
   // Total
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  yPosition = addLeftRightText('ИТОГО:', `₽${transaction.total}`, yPosition, 10);
+  yPosition = addLeftRightText('ИТОГО:', `₸${transaction.total}`, yPosition, 10);
   
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   
   // Payment info
   if (transaction.paymentMethod === 'cash') {
-    yPosition = addLeftRightText('Получено:', `₽${transaction.receivedAmount}`, yPosition);
-    yPosition = addLeftRightText('Сдача:', `₽${transaction.changeAmount}`, yPosition);
+    yPosition = addLeftRightText('Получено:', `₸${transaction.receivedAmount}`, yPosition);
+    yPosition = addLeftRightText('Сдача:', `₸${transaction.changeAmount}`, yPosition);
   } else {
     yPosition = addLeftRightText('Оплата:', 'Карта', yPosition);
   }
@@ -160,19 +160,19 @@ export const generateShiftReportPDF = (shiftData: any) => {
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Касса на начало: ₽${shiftData.shift.startingCash}`, 20, yPosition);
+  doc.text(`Касса на начало: ₸${shiftData.shift.startingCash}`, 20, yPosition);
   yPosition += lineHeight;
-  doc.text(`Общие продажи: ₽${shiftData.totalSales}`, 20, yPosition);
+  doc.text(`Общие продажи: ₸${shiftData.totalSales}`, 20, yPosition);
   yPosition += lineHeight;
-  doc.text(`Продажи наличными: ₽${shiftData.cashSales}`, 20, yPosition);
+  doc.text(`Продажи наличными: ₸${shiftData.cashSales}`, 20, yPosition);
   yPosition += lineHeight;
-  doc.text(`Продажи по картам: ₽${shiftData.cardSales}`, 20, yPosition);
+  doc.text(`Продажи по картам: ₸${shiftData.cardSales}`, 20, yPosition);
   yPosition += lineHeight;
   doc.text(`Количество транзакций: ${shiftData.totalTransactions}`, 20, yPosition);
   yPosition += lineHeight;
   
   if (shiftData.shift.endingCash) {
-    doc.text(`Касса на конец: ₽${shiftData.shift.endingCash}`, 20, yPosition);
+    doc.text(`Касса на конец: ₸${shiftData.shift.endingCash}`, 20, yPosition);
     yPosition += lineHeight;
   }
   
@@ -223,7 +223,7 @@ export const generateInventoryReportPDF = (products: any[]) => {
     
     doc.text(product.sku, 20, yPosition);
     doc.text(product.name.substring(0, 25), 50, yPosition); // Truncate long names
-    doc.text(`₽${product.price}`, 120, yPosition);
+    doc.text(`₸${product.price}`, 120, yPosition);
     doc.text(product.stock.toString(), 150, yPosition);
     yPosition += lineHeight;
   });

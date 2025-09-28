@@ -69,10 +69,10 @@ export default function ReceiptModal() {
                 <div>
                   <p className="text-card-foreground">{item.product.name}</p>
                   <p className="text-muted-foreground">
-                    ₽{item.unitPrice} × {item.quantity}
+                    ₸{item.unitPrice} × {item.quantity}
                   </p>
                 </div>
-                <span className="text-card-foreground">₽{item.totalPrice}</span>
+                <span className="text-card-foreground">₸{item.totalPrice}</span>
               </div>
             ))}
           </div>
@@ -80,25 +80,25 @@ export default function ReceiptModal() {
           <div className="space-y-1 text-sm mb-6">
             <div className="flex justify-between">
               <span>Подытог:</span>
-              <span data-testid="receipt-subtotal">₽{transaction.subtotal}</span>
+              <span data-testid="receipt-subtotal">₸{transaction.subtotal}</span>
             </div>
             <div className="flex justify-between">
               <span>Налог (10%):</span>
-              <span data-testid="receipt-tax">₽{transaction.tax}</span>
+              <span data-testid="receipt-tax">₸{transaction.tax}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t border-border pt-2">
               <span>Итого:</span>
-              <span data-testid="receipt-total">₽{transaction.total}</span>
+              <span data-testid="receipt-total">₸{transaction.total}</span>
             </div>
             {transaction.paymentMethod === "cash" && (
               <>
                 <div className="flex justify-between">
                   <span>Получено:</span>
-                  <span data-testid="receipt-received">₽{transaction.receivedAmount}</span>
+                  <span data-testid="receipt-received">₸{transaction.receivedAmount}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Сдача:</span>
-                  <span data-testid="receipt-change">₽{transaction.changeAmount}</span>
+                  <span data-testid="receipt-change">₸{transaction.changeAmount}</span>
                 </div>
               </>
             )}
