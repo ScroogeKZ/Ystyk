@@ -14,6 +14,7 @@ import { insertProductSchema } from "@shared/schema";
 import type { ProductWithCategory, Category } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const iconMap: Record<string, any> = {
   "Напитки": Coffee,
@@ -27,6 +28,7 @@ export default function InventoryTab() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
 
   const { data: products = [], isLoading } = useQuery<ProductWithCategory[]>({
     queryKey: ["/api/products"],

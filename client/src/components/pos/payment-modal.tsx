@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Delete } from "lucide-react";
 import { usePOSStore } from "@/hooks/use-pos-store";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useFormatters } from "@/i18n/utils";
 
 export default function PaymentModal() {
   const { paymentModal, closePaymentModal, processPayment } = usePOSStore();
+  const { t } = useLanguage();
+  const { formatCurrency } = useFormatters();
   const [receivedAmount, setReceivedAmount] = useState(0);
 
   const change = Math.max(0, receivedAmount - paymentModal.amount);
@@ -39,7 +43,7 @@ export default function PaymentModal() {
       <div className="bg-card border border-border rounded-lg w-96 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-card-foreground">
-            Оплата {paymentModal.method === "cash" ? "наличными" : "картой"}
+            {paymentModal.method === "cash" ? t.payment.cashPayment : t.payment.cardPayment}
           </h2>
           <Button
             variant="ghost"
@@ -53,25 +57,25 @@ export default function PaymentModal() {
         
         {/* Amount Display */}
         <div className="bg-muted rounded-lg p-4 mb-4">
-          <p className="text-sm text-muted-foreground mb-1">К оплате:</p>
+          <p className="text-sm text-muted-foreground mb-1">{t.payment.toPay}</p>
           <p className="text-2xl font-bold text-primary" data-testid="payment-amount">
-            ₽{paymentModal.amount.toFixed(2)}
+            {formatCurrency(paymentModal.amount)}
           </p>
         </div>
         
         {paymentModal.method === "cash" && (
           <>
             <div className="bg-input rounded-lg p-4 mb-4">
-              <p className="text-sm text-muted-foreground mb-1">Получено:</p>
+              <p className="text-sm text-muted-foreground mb-1">{t.payment.received}</p>
               <p className="text-2xl font-bold text-card-foreground" data-testid="received-amount">
-                ₽{receivedAmount}
+                {formatCurrency(receivedAmount)}
               </p>
             </div>
             
             <div className="bg-accent rounded-lg p-4 mb-6">
-              <p className="text-sm text-muted-foreground mb-1">Сдача:</p>
+              <p className="text-sm text-muted-foreground mb-1">{t.payment.change}</p>
               <p className="text-2xl font-bold text-green-600" data-testid="change-amount">
-                ₽{change.toFixed(2)}
+                {formatCurrency(change)}
               </p>
             </div>
             
@@ -124,7 +128,7 @@ export default function PaymentModal() {
             onClick={closePaymentModal}
             data-testid="cancel-payment"
           >
-            Отмена
+            {t.payment.cancel}
           </Button>
           <Button
             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
@@ -132,7 +136,7 @@ export default function PaymentModal() {
             disabled={paymentModal.method === "cash" && !canProcess}
             data-testid="process-payment"
           >
-            Завершить
+            {t.payment.complete}
           </Button>
         </div>
       </div>

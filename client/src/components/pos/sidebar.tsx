@@ -1,5 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import FiscalStatus from "@/components/pos/fiscal-status";
 import { 
   ShoppingCart, 
   Package, 
@@ -9,7 +12,8 @@ import {
   Clock,
   ScanBarcode,
   Wifi,
-  User
+  User,
+  Settings
 } from "lucide-react";
 
 interface SidebarProps {
@@ -17,16 +21,26 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
 }
 
-const tabs = [
-  { id: "sales", label: "Продажи", icon: ShoppingCart },
-  { id: "inventory", label: "Товары", icon: Package },
-  { id: "analytics", label: "Аналитика", icon: BarChart3 },
-  { id: "customers", label: "Клиенты", icon: Users },
-  { id: "returns", label: "Возвраты", icon: RotateCcw },
-  { id: "shift", label: "Смена", icon: Clock },
-];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { t } = useLanguage();
+  
+  const tabs = [
+    { id: "sales", label: t.sidebar.sales, icon: ShoppingCart },
+    { id: "inventory", label: t.sidebar.inventory, icon: Package },
+    { id: "acceptance", label: "Приемка", icon: Package },
+    { id: "audit", label: "Инвентаризация", icon: Package },
+    { id: "writeoffs", label: "Списания", icon: Package },
+    { id: "loyalty", label: "Лояльность", icon: User },
+    { id: "promotions", label: "Акции", icon: Package },
+    { id: "hardware", label: "Оборудование", icon: Settings },
+    { id: "reports", label: "Отчеты", icon: BarChart3 },
+    { id: "monitoring", label: "Мониторинг", icon: BarChart3 },
+    { id: "analytics", label: t.sidebar.analytics, icon: BarChart3 },
+    { id: "customers", label: t.sidebar.customers, icon: Users },
+    { id: "returns", label: t.sidebar.returns, icon: RotateCcw },
+    { id: "shift", label: t.sidebar.shift, icon: Clock },
+  ];
   return (
     <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col" data-testid="sidebar">
       {/* Header */}
@@ -36,8 +50,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <ScanBarcode className="text-sidebar-primary-foreground text-lg" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-sidebar-foreground">POS System</h1>
-            <p className="text-xs text-muted-foreground">Касса #001</p>
+            <h1 className="font-bold text-lg text-sidebar-foreground">{t.sidebar.posSystem}</h1>
+            <p className="text-xs text-muted-foreground">{t.sidebar.register}</p>
           </div>
         </div>
         
@@ -45,9 +59,9 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex items-center gap-2">
           <Badge variant="destructive" className="bg-red-100 text-red-800">
             <Wifi className="w-3 h-3 mr-1" />
-            Офлайн
+            {t.sidebar.offline}
           </Badge>
-          <span className="text-xs text-muted-foreground">Смена открыта</span>
+          <span className="text-xs text-muted-foreground">{t.sidebar.shiftOpen}</span>
         </div>
       </div>
       
@@ -72,6 +86,16 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         })}
       </nav>
       
+      {/* Fiscal Status */}
+      <div className="p-4 border-t border-sidebar-border">
+        <FiscalStatus />
+      </div>
+      
+      {/* Language Switcher */}
+      <div className="p-4 border-t border-sidebar-border">
+        <LanguageSwitcher />
+      </div>
+      
       {/* User Info */}
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3">
@@ -80,7 +104,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
           <div>
             <p className="text-sm font-medium text-sidebar-foreground">Анна Петрова</p>
-            <p className="text-xs text-muted-foreground">Кассир</p>
+            <p className="text-xs text-muted-foreground">{t.common.cashier}</p>
           </div>
         </div>
       </div>

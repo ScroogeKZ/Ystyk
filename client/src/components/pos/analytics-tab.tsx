@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Banknote, Receipt, TrendingUp, Wifi } from "lucide-react";
 import { useState } from "react";
 import type { Product } from "@shared/schema";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { useFormatters } from "@/i18n/utils";
 
 interface DailySales {
   revenue: number;
@@ -18,6 +20,8 @@ interface TopProduct {
 
 export default function AnalyticsTab() {
   const [dateFilter, setDateFilter] = useState("today");
+  const { t } = useLanguage();
+  const { formatCurrency } = useFormatters();
 
   const { data: dailyAnalytics } = useQuery<DailySales>({
     queryKey: ["/api/analytics/daily", new Date().toISOString().split('T')[0]],
@@ -31,16 +35,16 @@ export default function AnalyticsTab() {
     <div className="flex-1 p-6" data-testid="analytics-tab">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Аналитика</h1>
+          <h1 className="text-3xl font-bold text-foreground">{t.analytics.title}</h1>
           <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="w-48" data-testid="date-filter">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Сегодня</SelectItem>
-              <SelectItem value="yesterday">Вчера</SelectItem>
-              <SelectItem value="week">На этой неделе</SelectItem>
-              <SelectItem value="month">В этом месяце</SelectItem>
+              <SelectItem value="today">{t.analytics.today}</SelectItem>
+              <SelectItem value="yesterday">{t.analytics.yesterday}</SelectItem>
+              <SelectItem value="week">{t.analytics.thisWeek}</SelectItem>
+              <SelectItem value="month">{t.analytics.thisMonth}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -49,51 +53,51 @@ export default function AnalyticsTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Выручка</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t.analytics.revenue}</CardTitle>
               <Banknote className="w-4 h-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-card-foreground" data-testid="revenue">
-                ₽{dailyAnalytics?.revenue?.toFixed(2) || "0.00"}
+                {formatCurrency(dailyAnalytics?.revenue || 0)}
               </div>
-              <p className="text-xs text-green-600">+12% от вчера</p>
+              <p className="text-xs text-green-600">+12% {t.analytics.fromYesterday}</p>
             </CardContent>
           </Card>
           
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Транзакции</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t.analytics.transactions}</CardTitle>
               <Receipt className="w-4 h-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-card-foreground" data-testid="transactions">
                 {dailyAnalytics?.transactions || 0}
               </div>
-              <p className="text-xs text-blue-600">+3 от вчера</p>
+              <p className="text-xs text-blue-600">+3 {t.analytics.fromYesterday}</p>
             </CardContent>
           </Card>
           
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Средний чек</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t.analytics.averageCheck}</CardTitle>
               <TrendingUp className="w-4 h-4 text-purple-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-card-foreground" data-testid="average-check">
-                ₽{dailyAnalytics?.averageCheck?.toFixed(2) || "0.00"}
+                {formatCurrency(dailyAnalytics?.averageCheck || 0)}
               </div>
-              <p className="text-xs text-purple-600">+₽15 от вчера</p>
+              <p className="text-xs text-purple-600">+{formatCurrency(15)} {t.analytics.fromYesterday}</p>
             </CardContent>
           </Card>
           
           <Card className="stat-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Офлайн операций</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t.analytics.offlineOperations}</CardTitle>
               <Wifi className="w-4 h-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-card-foreground">0</div>
-              <p className="text-xs text-red-600">Ожидают синхронизации</p>
+              <p className="text-xs text-red-600">{t.analytics.waitingSync}</p>
             </CardContent>
           </Card>
         </div>
@@ -103,11 +107,11 @@ export default function AnalyticsTab() {
           {/* Revenue Chart */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-card-foreground">Выручка по часам</CardTitle>
+              <CardTitle className="text-lg font-semibold text-card-foreground">{t.analytics.hourlyRevenue}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64 bg-muted rounded-lg flex items-center justify-center">
-                <p className="text-muted-foreground">График выручки по часам</p>
+                <p className="text-muted-foreground">{t.common.chartPlaceholder}</p>
               </div>
             </CardContent>
           </Card>
@@ -115,7 +119,7 @@ export default function AnalyticsTab() {
           {/* Top Products */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-card-foreground">Топ товары</CardTitle>
+              <CardTitle className="text-lg font-semibold text-card-foreground">{t.analytics.topProducts}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -128,11 +132,11 @@ export default function AnalyticsTab() {
                         </div>
                         <span className="text-card-foreground">{item.product.name}</span>
                       </div>
-                      <span className="font-semibold text-card-foreground">{item.sold} шт</span>
+                      <span className="font-semibold text-card-foreground">{item.sold} {t.common.pieces}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-muted-foreground text-center">Нет данных о продажах</p>
+                  <p className="text-muted-foreground text-center">{t.common.noData}</p>
                 )}
               </div>
             </CardContent>
