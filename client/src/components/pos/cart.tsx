@@ -19,6 +19,7 @@ export default function Cart() {
     openPaymentModal 
   } = usePOSStore();
   
+  
   const { formatCurrency } = useFormatters();
 
   const { data: customers = [] } = useQuery<Customer[]>({
