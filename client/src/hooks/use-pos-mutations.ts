@@ -30,7 +30,7 @@ export const usePOSMutations = () => {
       // Get transaction data from store
       const transactionData = prepareTransaction();
       if (!transactionData) {
-        throw new Error('Корзина пуста');
+        throw new Error('Откройте смену, чтобы продолжить оплату');
       }
 
       // Validate payment

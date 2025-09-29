@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { TransactionWithItems } from '@shared/schema';
+import { useSessionStore } from './use-session-store';
 import { 
   addItemToCart, 
   removeItemFromCart, 
@@ -154,10 +155,18 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     
     if (cart.length === 0) return null;
     
-    // Mock context - in real app this would come from auth/shift context
+    // Get session from session store
+    const session = useSessionStore.getState();
+    
+    // Ensure we have an active shift
+    if (!session.currentShift) {
+      return null;
+    }
+    
+    // Use real shift and user IDs from session
     const context = {
-      shiftId: 'mock-shift-id-' + Date.now(),
-      userId: 'mock-user-id-' + Date.now(),
+      shiftId: session.currentShift.id,
+      userId: session.userId,
       customerId: selectedCustomer || undefined,
     };
     

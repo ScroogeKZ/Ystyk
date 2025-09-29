@@ -17,10 +17,14 @@ import ShiftTab from "@/components/pos/shift-tab";
 import PaymentModal from "@/components/pos/payment-modal";
 import EnhancedReceiptModal from "@/components/pos/enhanced-receipt-modal";
 import { usePOSStore } from "@/hooks/use-pos-store";
+import { useSyncCurrentShift } from "@/hooks/use-sync-current-shift";
 
 export default function POS() {
   const [activeTab, setActiveTab] = useState("sales");
   const { paymentModal, receiptModal } = usePOSStore();
+  
+  // Sync current shift with backend
+  useSyncCurrentShift();
 
   const renderTabContent = () => {
     switch (activeTab) {

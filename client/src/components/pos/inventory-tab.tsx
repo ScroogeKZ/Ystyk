@@ -26,6 +26,8 @@ const iconMap: Record<string, any> = {
 export default function InventoryTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductWithCategory | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -53,6 +55,30 @@ export default function InventoryTab() {
       toast({
         title: "Успех",
         description: "Товар успешно добавлен",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ошибка",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiRequest("PUT", `/api/products/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setIsEditDialogOpen(false);
+      setEditingProduct(null);
+      resetForm();
+      toast({
+        title: "Успех",
+        description: "Товар успешно обновлен",
       });
     },
     onError: (error: any) => {
@@ -139,7 +165,7 @@ export default function InventoryTab() {
   );
 
   const onSubmit = async (data: any) => {
-    let imageUrl = "";
+    let imageUrl = data.imageUrl || "";
     
     // Upload image first if selected
     if (selectedImage) {
@@ -149,18 +175,44 @@ export default function InventoryTab() {
       }
     }
     
-    // Create product with image URL
+    // Create or update product with image URL
     const productData = { ...data };
     if (imageUrl) {
       productData.imageUrl = imageUrl;
     }
-    addProductMutation.mutate(productData);
+    
+    if (editingProduct) {
+      updateProductMutation.mutate({ id: editingProduct.id, data: productData });
+    } else {
+      addProductMutation.mutate(productData);
+    }
   };
 
   const resetForm = () => {
     form.reset();
     setSelectedImage(null);
     setImagePreview(null);
+  };
+
+  const handleEdit = (product: ProductWithCategory) => {
+    setEditingProduct(product);
+    setSelectedImage(null); // Clear any stale image selection
+    form.reset({
+      sku: product.sku,
+      name: product.name,
+      description: product.description || "",
+      price: product.price,
+      stock: product.stock,
+      categoryId: product.categoryId || "",
+      imageUrl: product.imageUrl || "",
+      isActive: product.isActive,
+    });
+    if (product.imageUrl) {
+      setImagePreview(product.imageUrl);
+    } else {
+      setImagePreview(null);
+    }
+    setIsEditDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -182,7 +234,12 @@ export default function InventoryTab() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-foreground">Управление товарами</h1>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) {
+              resetForm();
+            }
+          }}>
             <DialogTrigger asChild>
               <Button data-testid="add-product">
                 <Plus className="w-4 h-4 mr-2" />
@@ -325,6 +382,151 @@ export default function InventoryTab() {
               </Form>
             </DialogContent>
           </Dialog>
+          
+          {/* Edit Product Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+            setIsEditDialogOpen(open);
+            if (!open) {
+              setEditingProduct(null);
+              resetForm();
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Редактировать товар</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="sku"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SKU</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-sku-edit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Название</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-name-edit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Описание</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-description-edit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Цена</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} data-testid="input-price-edit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="stock"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Количество</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value))} data-testid="input-stock-edit" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Категория</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-category-edit">
+                              <SelectValue placeholder="Выберите категорию" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Image Upload Field */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Изображение товара</label>
+                    <div className="flex flex-col space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        data-testid="input-image-edit"
+                      />
+                      {imagePreview && (
+                        <div className="relative w-32 h-32 border border-border rounded-lg overflow-hidden">
+                          <img
+                            src={imagePreview}
+                            alt="Предпросмотр"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setImagePreview(null);
+                            }}
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-destructive/90"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={updateProductMutation.isPending || isUploadingImage} data-testid="submit-product-edit">
+                    {updateProductMutation.isPending || isUploadingImage ? "Обновление..." : "Обновить"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="mb-4">
@@ -392,6 +594,7 @@ export default function InventoryTab() {
                           variant="ghost"
                           size="sm"
                           className="text-primary hover:bg-primary hover:text-primary-foreground"
+                          onClick={() => handleEdit(product)}
                           data-testid={`edit-product-${product.id}`}
                         >
                           <Edit className="w-4 h-4" />

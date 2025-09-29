@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Delete } from "lucide-react";
 import { usePOSStore } from "@/hooks/use-pos-store";
+import { usePOSMutations } from "@/hooks/use-pos-mutations";
+import { useSessionStore } from "@/hooks/use-session-store";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useFormatters } from "@/i18n/utils";
 
 export default function PaymentModal() {
-  const { paymentModal, closePaymentModal, processPayment } = usePOSStore();
+  const { paymentModal, closePaymentModal } = usePOSStore();
+  const { createTransaction } = usePOSMutations();
   const { t } = useLanguage();
   const { formatCurrency } = useFormatters();
+  const currentShift = useSessionStore((state) => state.currentShift);
   const [receivedAmount, setReceivedAmount] = useState(0);
 
   const change = Math.max(0, receivedAmount - paymentModal.amount);
-  const canProcess = receivedAmount >= paymentModal.amount;
+  const canProcess = receivedAmount >= paymentModal.amount && !!currentShift;
 
   useEffect(() => {
     setReceivedAmount(0);
@@ -31,8 +35,12 @@ export default function PaymentModal() {
   };
 
   const handleProcess = () => {
-    if (canProcess) {
-      processPayment(receivedAmount, change);
+    if (paymentModal.method === "card" || canProcess) {
+      createTransaction.mutate({
+        method: paymentModal.method!,
+        amount: paymentModal.amount,
+        receivedAmount: paymentModal.method === "cash" ? receivedAmount : paymentModal.amount,
+      });
     }
   };
 
@@ -133,7 +141,7 @@ export default function PaymentModal() {
           <Button
             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
             onClick={handleProcess}
-            disabled={paymentModal.method === "cash" && !canProcess}
+            disabled={!currentShift || (paymentModal.method === "cash" && !canProcess)}
             data-testid="process-payment"
           >
             {t.payment.complete}

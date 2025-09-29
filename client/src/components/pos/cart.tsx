@@ -9,7 +9,8 @@ import type { Customer } from "@shared/schema";
 
 export default function Cart() {
   const { 
-    cart, 
+    cart,
+    cartSummary,
     selectedCustomer, 
     setSelectedCustomer, 
     removeFromCart, 
@@ -24,9 +25,7 @@ export default function Cart() {
     queryKey: ["/api/customers"],
   });
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.1; // 10% tax
-  const total = subtotal + tax;
+  const { subtotal, tax, total } = cartSummary;
 
   const handleCashPayment = () => {
     openPaymentModal("cash", total);
@@ -82,7 +81,7 @@ export default function Cart() {
               <div key={item.id} className="cart-item" data-testid={`cart-item-${item.id}`}>
                 <div className="flex-1">
                   <h4 className="font-medium text-card-foreground text-lg mb-1">{item.name}</h4>
-                  <p className="text-sm text-muted-foreground">{formatCurrency(item.price)}</p>
+                  <p className="text-sm text-muted-foreground">{formatCurrency(parseFloat(item.price))}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <Button
@@ -108,7 +107,7 @@ export default function Cart() {
                   </Button>
                 </div>
                 <div className="w-20 text-right font-bold text-card-foreground text-lg">
-                  {formatCurrency(item.price * item.quantity)}
+                  {formatCurrency(parseFloat(item.price) * item.quantity)}
                 </div>
               </div>
             ))}

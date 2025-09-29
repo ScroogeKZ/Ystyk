@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, RotateCcw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useSessionStore } from "@/hooks/use-session-store";
 import type { TransactionWithItems, Return, Transaction } from "@shared/schema";
 
 type ReturnWithTransaction = Return & { originalTransaction: Transaction };
@@ -75,9 +76,19 @@ export default function ReturnsTab() {
   const handleReturn = () => {
     if (!foundTransaction) return;
 
+    const userId = useSessionStore.getState().userId;
+    if (!userId) {
+      toast({
+        title: "Ошибка",
+        description: "Требуется вход в систему",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const returnData = {
       originalTransactionId: foundTransaction.id,
-      userId: "mock-user-id-" + Date.now(), // In real app this would come from auth context
+      userId,
       reason: "Customer return",
       refundAmount: foundTransaction.total,
       refundMethod: foundTransaction.paymentMethod,

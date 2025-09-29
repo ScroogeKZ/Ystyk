@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useSessionStore } from "@/hooks/use-session-store";
 import type { Shift, ShiftSummary, TransactionWithItems } from "@shared/schema";
 
 const openShiftSchema = z.object({
@@ -29,10 +30,11 @@ export default function ShiftTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock user ID - in real app this would come from auth context
-  const currentUserId = "default-user-id";
+  // Get user ID and current shift from session store
+  const currentUserId = useSessionStore((state) => state.userId);
+  const currentShift = useSessionStore((state) => state.currentShift);
 
-  const { data: currentShift, isLoading } = useQuery<Shift>({
+  const { isLoading } = useQuery<Shift>({
     queryKey: ["/api/shifts/current", currentUserId],
   });
 

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Barcode, Coffee, Cookie, GlassWater, Sandwich, IceCream, PillBottle } from "lucide-react";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import { useFormatters } from "@/i18n/utils";
+import BarcodeScanner from "./barcode-scanner";
 import type { ProductWithCategory, Category } from "@shared/schema";
 
 const iconMap: Record<string, any> = {
@@ -18,6 +19,7 @@ const iconMap: Record<string, any> = {
 export default function ProductGrid() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const { addToCart } = usePOSStore();
   const { formatCurrency } = useFormatters();
 
@@ -70,7 +72,11 @@ export default function ProductGrid() {
               data-testid="search-products"
             />
           </div>
-          <Button className="px-6" data-testid="barcode-scanner">
+          <Button 
+            className="px-6" 
+            data-testid="barcode-scanner"
+            onClick={() => setScannerOpen(true)}
+          >
             <Barcode className="w-4 h-4 mr-2" />
             Сканер
           </Button>
@@ -142,6 +148,21 @@ export default function ProductGrid() {
           </div>
         )}
       </div>
+      
+      <BarcodeScanner
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onProductScanned={(product) => {
+          addToCart({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            stock: product.stock,
+            sku: product.sku
+          });
+          setScannerOpen(false);
+        }}
+      />
     </div>
   );
 }

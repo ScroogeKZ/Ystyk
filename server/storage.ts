@@ -99,6 +99,7 @@ export class MemStorage implements IStorage {
         price: "120.00",
         stock: 25,
         categoryId: beverages.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       },
@@ -110,6 +111,7 @@ export class MemStorage implements IStorage {
         price: "180.00",
         stock: 12,
         categoryId: pastry.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       },
@@ -121,6 +123,7 @@ export class MemStorage implements IStorage {
         price: "150.00",
         stock: 8,
         categoryId: beverages.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       },
@@ -132,6 +135,7 @@ export class MemStorage implements IStorage {
         price: "320.00",
         stock: 6,
         categoryId: snacks.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       },
@@ -143,6 +147,7 @@ export class MemStorage implements IStorage {
         price: "95.00",
         stock: 15,
         categoryId: pastry.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       },
@@ -154,6 +159,7 @@ export class MemStorage implements IStorage {
         price: "60.00",
         stock: 30,
         categoryId: beverages.id,
+        imageUrl: null,
         isActive: true,
         createdAt: new Date()
       }
@@ -244,6 +250,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
       description: insertProduct.description || null,
       categoryId: insertProduct.categoryId || null,
+      imageUrl: insertProduct.imageUrl || null,
       stock: insertProduct.stock || 0,
       isActive: insertProduct.isActive ?? true
     };

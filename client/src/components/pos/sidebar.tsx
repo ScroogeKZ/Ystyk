@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FiscalStatus from "@/components/pos/fiscal-status";
+import { useSessionStore } from "@/hooks/use-session-store";
 import { 
   ShoppingCart, 
   Package, 
@@ -24,6 +25,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { t } = useLanguage();
+  const currentShift = useSessionStore((state) => state.currentShift);
   
   const tabs = [
     { id: "sales", label: t.sidebar.sales, icon: ShoppingCart },
@@ -57,11 +59,17 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         
         {/* Status */}
         <div className="flex items-center gap-2">
-          <Badge variant="destructive" className="bg-red-100 text-red-800">
-            <Wifi className="w-3 h-3 mr-1" />
-            {t.sidebar.offline}
-          </Badge>
-          <span className="text-xs text-muted-foreground">{t.sidebar.shiftOpen}</span>
+          {currentShift ? (
+            <Badge variant="default" className="bg-green-100 text-green-800">
+              <Wifi className="w-3 h-3 mr-1" />
+              {t.sidebar.shiftOpen}
+            </Badge>
+          ) : (
+            <Badge variant="destructive" className="bg-red-100 text-red-800">
+              <Wifi className="w-3 h-3 mr-1" />
+              Смена закрыта
+            </Badge>
+          )}
         </div>
       </div>
       
