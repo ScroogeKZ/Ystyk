@@ -40,7 +40,7 @@ export default function ProductGrid() {
     addToCart({
       id: product.id,
       name: product.name,
-      price: parseFloat(product.price),
+      price: product.price,
       stock: product.stock,
       sku: product.sku
     });
@@ -112,8 +112,16 @@ export default function ProductGrid() {
                 onClick={() => handleAddToCart(product)}
                 data-testid={`product-${product.id}`}
               >
-                <div className="aspect-square bg-muted rounded-lg mb-4 flex items-center justify-center">
-                  <Icon className="text-muted-foreground w-12 h-12" />
+                <div className="aspect-square bg-muted rounded-lg mb-4 flex items-center justify-center overflow-hidden">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Icon className="text-muted-foreground w-12 h-12" />
+                  )}
                 </div>
                 <h3 className="font-semibold mb-2 text-card-foreground text-lg">{product.name}</h3>
                 <p className="text-xl font-bold text-primary mb-1">{formatCurrency(parseFloat(product.price))}</p>

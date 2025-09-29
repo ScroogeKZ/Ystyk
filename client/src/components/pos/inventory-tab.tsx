@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Coffee, Cookie, Sandwich } from "lucide-react";
+import { Plus, Edit, Trash2, Coffee, Cookie, Sandwich, Upload, Image } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertProductSchema } from "@shared/schema";
@@ -26,6 +26,9 @@ const iconMap: Record<string, any> = {
 export default function InventoryTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
@@ -46,6 +49,7 @@ export default function InventoryTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setIsAddDialogOpen(false);
+      resetForm();
       toast({
         title: "Успех",
         description: "Товар успешно добавлен",
@@ -89,17 +93,74 @@ export default function InventoryTab() {
       price: "0",
       stock: 0,
       categoryId: "",
+      imageUrl: "",
       isActive: true,
     },
   });
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!selectedImage) return null;
+    
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedImage);
+      
+      const response = await apiRequest("POST", "/api/products/upload-image", formData);
+      const data = await response.json();
+      return data.imageUrl;
+    } catch (error: any) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить изображение",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const onSubmit = (data: any) => {
-    addProductMutation.mutate(data);
+  const onSubmit = async (data: any) => {
+    let imageUrl = "";
+    
+    // Upload image first if selected
+    if (selectedImage) {
+      const uploadedImageUrl = await uploadImage();
+      if (uploadedImageUrl) {
+        imageUrl = uploadedImageUrl;
+      }
+    }
+    
+    // Create product with image URL
+    const productData = { ...data };
+    if (imageUrl) {
+      productData.imageUrl = imageUrl;
+    }
+    addProductMutation.mutate(productData);
+  };
+
+  const resetForm = () => {
+    form.reset();
+    setSelectedImage(null);
+    setImagePreview(null);
   };
 
   const handleDelete = (id: string) => {
@@ -223,8 +284,42 @@ export default function InventoryTab() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={addProductMutation.isPending} data-testid="submit-product">
-                    {addProductMutation.isPending ? "Добавление..." : "Добавить"}
+                  
+                  {/* Image Upload Field */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Изображение товара</label>
+                    <div className="flex flex-col space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        data-testid="input-image"
+                      />
+                      {imagePreview && (
+                        <div className="relative w-32 h-32 border border-border rounded-lg overflow-hidden">
+                          <img
+                            src={imagePreview}
+                            alt="Предпросмотр"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setImagePreview(null);
+                            }}
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-destructive/90"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={addProductMutation.isPending || isUploadingImage} data-testid="submit-product">
+                    {addProductMutation.isPending || isUploadingImage ? "Добавление..." : "Добавить"}
                   </Button>
                 </form>
               </Form>
@@ -262,8 +357,16 @@ export default function InventoryTab() {
                   <TableRow key={product.id} data-testid={`inventory-row-${product.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                          <Icon className="text-muted-foreground w-5 h-5" />
+                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center overflow-hidden">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Icon className="text-muted-foreground w-5 h-5" />
+                          )}
                         </div>
                         <div>
                           <p className="font-medium text-card-foreground">{product.name}</p>
