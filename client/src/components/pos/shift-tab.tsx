@@ -274,7 +274,7 @@ export default function ShiftTab() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1" data-testid="shift-start-time">
-                    Открыта в {currentShift.startTime.toLocaleTimeString('ru-RU', { 
+                    Открыта в {new Date(currentShift.startTime).toLocaleTimeString('ru-RU', { 
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
@@ -343,7 +343,7 @@ export default function ShiftTab() {
                               {transaction.status === "refunded" ? "Возврат" : "Продажа"}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {transaction.createdAt.toLocaleTimeString('ru-RU', { 
+                              {new Date(transaction.createdAt).toLocaleTimeString('ru-RU', { 
                                 hour: '2-digit', 
                                 minute: '2-digit' 
                               })}

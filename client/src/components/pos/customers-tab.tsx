@@ -182,7 +182,7 @@ export default function CustomersTab() {
                     </div>
                   </TableCell>
                   <TableCell className="text-card-foreground">
-                    {customer.createdAt.toLocaleDateString('ru-RU')}
+                    {new Date(customer.createdAt).toLocaleDateString('ru-RU')}
                   </TableCell>
                 </TableRow>
               ))}

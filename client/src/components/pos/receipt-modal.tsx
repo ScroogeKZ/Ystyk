@@ -50,7 +50,7 @@ export default function ReceiptModal() {
             <div className="flex justify-between">
               <span>Дата:</span>
               <span data-testid="receipt-date">
-                {transaction.createdAt.toLocaleString('ru-RU')}
+                {new Date(transaction.createdAt).toLocaleString('ru-RU')}
               </span>
             </div>
             <div className="flex justify-between">

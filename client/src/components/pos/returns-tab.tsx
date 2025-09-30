@@ -140,7 +140,7 @@ export default function ReturnsTab() {
                   <div>
                     <h3 className="font-semibold text-card-foreground">Чек #{foundTransaction.receiptNumber}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {foundTransaction.createdAt.toLocaleString('ru-RU')}
+                      {new Date(foundTransaction.createdAt).toLocaleString('ru-RU')}
                     </p>
                   </div>
                   <div className="text-right">
@@ -189,7 +189,7 @@ export default function ReturnsTab() {
                     <div>
                       <p className="font-medium text-card-foreground">Чек #{returnItem.originalTransaction.receiptNumber}</p>
                       <p className="text-sm text-muted-foreground">
-                        {returnItem.createdAt.toLocaleString('ru-RU')}
+                        {new Date(returnItem.createdAt).toLocaleString('ru-RU')}
                       </p>
                       <p className="text-sm text-muted-foreground">{returnItem.reason}</p>
                     </div>

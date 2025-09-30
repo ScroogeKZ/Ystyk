@@ -50,7 +50,7 @@ export const generateReceiptPDF = (transaction: TransactionWithItems) => {
   
   // Receipt info
   yPosition = addLeftRightText('Чек:', `#${transaction.receiptNumber}`, yPosition);
-  yPosition = addLeftRightText('Дата:', transaction.createdAt.toLocaleString('ru-RU'), yPosition);
+  yPosition = addLeftRightText('Дата:', new Date(transaction.createdAt).toLocaleString('ru-RU'), yPosition);
   yPosition = addLeftRightText('Кассир:', 'Анна Петрова', yPosition);
   yPosition = addLeftRightText('Касса:', '#001', yPosition);
   
@@ -142,11 +142,11 @@ export const generateShiftReportPDF = (shiftData: any) => {
   doc.setFont('helvetica', 'normal');
   doc.text(`Смена: ${shiftData.shift.id}`, 20, yPosition);
   yPosition += lineHeight;
-  doc.text(`Открыта: ${shiftData.shift.startTime.toLocaleString('ru-RU')}`, 20, yPosition);
+  doc.text(`Открыта: ${new Date(shiftData.shift.startTime).toLocaleString('ru-RU')}`, 20, yPosition);
   yPosition += lineHeight;
   
   if (shiftData.shift.endTime) {
-    doc.text(`Закрыта: ${shiftData.shift.endTime.toLocaleString('ru-RU')}`, 20, yPosition);
+    doc.text(`Закрыта: ${new Date(shiftData.shift.endTime).toLocaleString('ru-RU')}`, 20, yPosition);
     yPosition += lineHeight;
   }
   

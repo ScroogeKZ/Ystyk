@@ -29,6 +29,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   
   const tabs = [
     { id: "sales", label: t.sidebar.sales, icon: ShoppingCart },
+    { id: "shift", label: t.sidebar.shift, icon: Clock },
     { id: "inventory", label: t.sidebar.inventory, icon: Package },
     { id: "acceptance", label: "Приемка", icon: Package },
     { id: "audit", label: "Инвентаризация", icon: Package },
@@ -41,7 +42,6 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     { id: "analytics", label: t.sidebar.analytics, icon: BarChart3 },
     { id: "customers", label: t.sidebar.customers, icon: Users },
     { id: "returns", label: t.sidebar.returns, icon: RotateCcw },
-    { id: "shift", label: t.sidebar.shift, icon: Clock },
   ];
   return (
     <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col" data-testid="sidebar">
