@@ -64,7 +64,11 @@ passport.serializeUser((user: Express.User, done) => {
 passport.deserializeUser(async (id: string, done) => {
   try {
     const user = await storage.getUser(id);
-    done(null, user);
+    if (!user) {
+      return done(null, false);
+    }
+    const { password, ...userWithoutPassword } = user;
+    done(null, userWithoutPassword);
   } catch (error) {
     done(error);
   }

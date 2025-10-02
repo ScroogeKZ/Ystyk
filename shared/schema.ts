@@ -101,9 +101,9 @@ export const insertProductSchema = createInsertSchema(products).omit({ id: true,
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertShiftSchema = createInsertSchema(shifts).omit({ id: true, startTime: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
-export const insertTransactionItemSchema = createInsertSchema(transactionItems).omit({ id: true });
+export const insertTransactionItemSchema = createInsertSchema(transactionItems).omit({ id: true, transactionId: true });
 export const insertReturnSchema = createInsertSchema(returns).omit({ id: true, createdAt: true });
-export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true });
+export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true, returnId: true });
 
 // Types
 export type User = typeof users.$inferSelect;
