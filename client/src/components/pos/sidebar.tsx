@@ -1,9 +1,13 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FiscalStatus from "@/components/pos/fiscal-status";
 import { useSessionStore } from "@/hooks/use-session-store";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ShoppingCart, 
   Package, 
@@ -14,7 +18,8 @@ import {
   ScanBarcode,
   Wifi,
   User,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react";
 
 interface SidebarProps {
@@ -26,6 +31,31 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { t } = useLanguage();
   const currentShift = useSessionStore((state) => state.currentShift);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest("POST", "/api/auth/logout", {});
+      
+      // Clear all queries and session store
+      queryClient.clear();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/session"] });
+      useSessionStore.setState({ userId: '', currentShift: null });
+      
+      toast({
+        title: "Выход выполнен",
+        description: "Вы успешно вышли из системы",
+      });
+      setLocation("/login");
+    } catch (error: any) {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось выйти из системы",
+        variant: "destructive",
+      });
+    }
+  };
   
   const tabs = [
     { id: "sales", label: t.sidebar.sales, icon: ShoppingCart },
@@ -106,15 +136,25 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       
       {/* User Info */}
       <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center">
             <User className="text-sidebar-primary-foreground text-sm" />
           </div>
-          <div>
-            <p className="text-sm font-medium text-sidebar-foreground">Анна Петрова</p>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-sidebar-foreground">Кассир</p>
             <p className="text-xs text-muted-foreground">{t.common.cashier}</p>
           </div>
         </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full" 
+          onClick={handleLogout}
+          data-testid="button-logout"
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Выход
+        </Button>
       </div>
     </div>
   );
