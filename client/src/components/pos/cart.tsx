@@ -26,14 +26,12 @@ export default function Cart() {
     queryKey: ["/api/customers"],
   });
 
-  const { subtotal, tax, total } = cartSummary;
-
   const handleCashPayment = () => {
-    openPaymentModal("cash", total);
+    openPaymentModal("cash", cartSummary.total);
   };
 
   const handleCardPayment = () => {
-    openPaymentModal("card", total);
+    openPaymentModal("card", cartSummary.total);
   };
 
   return (
@@ -124,15 +122,15 @@ export default function Cart() {
           <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
             <div className="flex justify-between text-card-foreground text-sm sm:text-base">
               <span>Подытог:</span>
-              <span data-testid="subtotal">{formatCurrency(subtotal)}</span>
+              <span data-testid="subtotal">{formatCurrency(cartSummary.subtotal)}</span>
             </div>
             <div className="flex justify-between text-card-foreground text-sm sm:text-base">
               <span>Налог:</span>
-              <span data-testid="tax">{formatCurrency(tax)}</span>
+              <span data-testid="tax">{formatCurrency(cartSummary.tax)}</span>
             </div>
             <div className="flex justify-between text-lg sm:text-xl font-bold border-t border-border pt-2 sm:pt-3 text-card-foreground">
               <span>Итого:</span>
-              <span data-testid="total">{formatCurrency(total)}</span>
+              <span data-testid="total">{formatCurrency(cartSummary.total)}</span>
             </div>
           </div>
           

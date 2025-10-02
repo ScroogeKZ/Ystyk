@@ -8,6 +8,13 @@ import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import type { User } from "@shared/schema";
 
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  throw new Error(
+    "SESSION_SECRET environment variable must be set in production. " +
+    "Generate a secure random string and set it as an environment variable."
+  );
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

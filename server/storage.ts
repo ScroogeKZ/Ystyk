@@ -352,13 +352,9 @@ export class PostgresStorage implements IStorage {
       const insertedItems = await tx.insert(transactionItems).values(itemsWithTransactionId).returning();
       
       for (const item of insertedItems) {
-        const product = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
-        if (product[0]) {
-          const newStock = Math.max(0, product[0].stock - item.quantity);
-          await tx.update(products)
-            .set({ stock: newStock })
-            .where(eq(products.id, item.productId));
-        }
+        await tx.update(products)
+          .set({ stock: sql`GREATEST(0, stock - ${item.quantity})` })
+          .where(eq(products.id, item.productId));
       }
       
       const itemsWithProducts = await Promise.all(
@@ -422,12 +418,9 @@ export class PostgresStorage implements IStorage {
       const insertedItems = await tx.insert(returnItems).values(itemsWithReturnId).returning();
       
       for (const item of insertedItems) {
-        const product = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
-        if (product[0]) {
-          await tx.update(products)
-            .set({ stock: product[0].stock + item.quantity })
-            .where(eq(products.id, item.productId));
-        }
+        await tx.update(products)
+          .set({ stock: sql`stock + ${item.quantity}` })
+          .where(eq(products.id, item.productId));
       }
       
       return returnRecord[0];
