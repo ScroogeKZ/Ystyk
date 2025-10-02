@@ -121,6 +121,7 @@ export default function InventoryTab() {
       categoryId: "",
       imageUrl: "",
       isActive: true,
+      expirationDate: "",
     },
   });
 
@@ -181,6 +182,11 @@ export default function InventoryTab() {
       productData.imageUrl = imageUrl;
     }
     
+    // Convert empty expirationDate to undefined
+    if (productData.expirationDate === "" || !productData.expirationDate) {
+      productData.expirationDate = undefined;
+    }
+    
     if (editingProduct) {
       updateProductMutation.mutate({ id: editingProduct.id, data: productData });
     } else {
@@ -206,6 +212,7 @@ export default function InventoryTab() {
       categoryId: product.categoryId || "",
       imageUrl: product.imageUrl || "",
       isActive: product.isActive,
+      expirationDate: product.expirationDate ? new Date(product.expirationDate).toISOString().split('T')[0] : "",
     });
     if (product.imageUrl) {
       setImagePreview(product.imageUrl);
@@ -337,6 +344,19 @@ export default function InventoryTab() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Срок годности (необязательно)</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} value={field.value || ""} data-testid="input-expiration-date" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -482,6 +502,19 @@ export default function InventoryTab() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Срок годности (необязательно)</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} value={field.value || ""} data-testid="input-expiration-date-edit" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

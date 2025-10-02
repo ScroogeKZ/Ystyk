@@ -27,6 +27,7 @@ export const products = pgTable("products", {
   categoryId: varchar("category_id").references(() => categories.id),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
+  expirationDate: timestamp("expiration_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

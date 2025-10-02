@@ -198,6 +198,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/products/expiring", requireAuth, async (req, res) => {
+    try {
+      const daysThreshold = parseInt(req.query.days as string) || 7;
+      const expiringProducts = await storage.getExpiringProducts(daysThreshold);
+      res.json(expiringProducts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/products", requireAuth, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);

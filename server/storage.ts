@@ -22,6 +22,7 @@ export interface IStorage {
   getProducts(): Promise<ProductWithCategory[]>;
   getProduct(id: string): Promise<Product | undefined>;
   getProductBySku(sku: string): Promise<Product | undefined>;
+  getExpiringProducts(daysThreshold: number): Promise<ProductWithCategory[]>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<Product>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
@@ -134,6 +135,27 @@ export class PostgresStorage implements IStorage {
   async getProductBySku(sku: string): Promise<Product | undefined> {
     const result = await db.select().from(products).where(eq(products.sku, sku)).limit(1);
     return result[0];
+  }
+
+  async getExpiringProducts(daysThreshold: number): Promise<ProductWithCategory[]> {
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
+    
+    const result = await db
+      .select()
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(
+        and(
+          sql`${products.expirationDate} IS NOT NULL`,
+          lte(products.expirationDate, thresholdDate)
+        )
+      );
+    
+    return result.map(row => ({
+      ...row.products,
+      category: row.categories || undefined
+    }));
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
