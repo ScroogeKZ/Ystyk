@@ -9,7 +9,7 @@ interface SessionStore {
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
-  userId: 'default-user-id', // Default user ID until auth is implemented
+  userId: '28fb1a59-5202-4cb1-a2b0-c1aee6e4686b', // Default cashier user
   currentShift: null,
   setUserId: (userId) => set({ userId }),
   setCurrentShift: (shift) => set({ currentShift: shift }),

@@ -1,5 +1,7 @@
-import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, users, products, categories, customers, shifts, transactions, transactionItems, returns, returnItems } from "@shared/schema";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import ws from "ws";
 
 export interface IStorage {
   // Users
@@ -52,310 +54,165 @@ export interface IStorage {
   getTopProducts(limit: number): Promise<Array<{ product: Product; sold: number }>>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User> = new Map();
-  private categories: Map<string, Category> = new Map();
-  private products: Map<string, Product> = new Map();
-  private customers: Map<string, Customer> = new Map();
-  private shifts: Map<string, Shift> = new Map();
-  private transactions: Map<string, Transaction> = new Map();
-  private transactionItems: Map<string, TransactionItem[]> = new Map();
-  private returns: Map<string, Return> = new Map();
-  private returnItems: Map<string, ReturnItem[]> = new Map();
+const db = drizzle({
+  connection: process.env.DATABASE_URL!,
+  ws: ws,
+});
 
-  constructor() {
-    this.seedData();
-  }
-
-  private seedData() {
-    // Create default categories
-    const beverages: Category = {
-      id: randomUUID(),
-      name: "Напитки",
-      description: "Горячие и холодные напитки"
-    };
-    const pastry: Category = {
-      id: randomUUID(),
-      name: "Выпечка",
-      description: "Свежая выпечка и десерты"
-    };
-    const snacks: Category = {
-      id: randomUUID(),
-      name: "Закуски",
-      description: "Легкие закуски и снеки"
-    };
-
-    this.categories.set(beverages.id, beverages);
-    this.categories.set(pastry.id, pastry);
-    this.categories.set(snacks.id, snacks);
-
-    // Create default products
-    const products: Product[] = [
-      {
-        id: randomUUID(),
-        sku: "ESP001",
-        name: "Эспрессо",
-        description: "Классический эспрессо",
-        price: "120.00",
-        stock: 25,
-        categoryId: beverages.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        sku: "CRS001",
-        name: "Круассан",
-        description: "Французский круассан с маслом",
-        price: "180.00",
-        stock: 12,
-        categoryId: pastry.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        sku: "JCE001",
-        name: "Сок апельсиновый",
-        description: "Свежевыжатый апельсиновый сок",
-        price: "150.00",
-        stock: 8,
-        categoryId: beverages.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        sku: "SND001",
-        name: "Сэндвич с курицей",
-        description: "Сэндвич с жареной курицей и овощами",
-        price: "320.00",
-        stock: 6,
-        categoryId: snacks.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        sku: "ICE001",
-        name: "Мороженое ванильное",
-        description: "Классическое ванильное мороженое",
-        price: "95.00",
-        stock: 15,
-        categoryId: pastry.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        sku: "WTR001",
-        name: "Вода минеральная",
-        description: "Минеральная вода без газа",
-        price: "60.00",
-        stock: 30,
-        categoryId: beverages.id,
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date()
-      }
-    ];
-
-    products.forEach(product => {
-      this.products.set(product.id, product);
-    });
-
-    // Create default user
-    const defaultUser: User = {
-      id: randomUUID(),
-      username: "cashier",
-      password: "password", // In real app, this would be hashed
-      role: "cashier",
-      email: "cashier@pos.local"
-    };
-    this.users.set(defaultUser.id, defaultUser);
-  }
-
+export class PostgresStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const user: User = { 
-      ...insertUser, 
-      id: randomUUID(),
-      role: insertUser.role || "cashier",
-      email: insertUser.email || null
-    };
-    this.users.set(user.id, user);
-    return user;
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   // Categories
   async getCategories(): Promise<Category[]> {
-    return Array.from(this.categories.values());
+    return await db.select().from(categories);
   }
 
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
-    const category: Category = { 
-      ...insertCategory, 
-      id: randomUUID(),
-      description: insertCategory.description || null
-    };
-    this.categories.set(category.id, category);
-    return category;
+    const result = await db.insert(categories).values(insertCategory).returning();
+    return result[0];
   }
 
   async updateCategory(id: string, updates: Partial<Category>): Promise<Category | undefined> {
-    const category = this.categories.get(id);
-    if (!category) return undefined;
-    const updated = { ...category, ...updates };
-    this.categories.set(id, updated);
-    return updated;
+    const result = await db.update(categories).set(updates).where(eq(categories.id, id)).returning();
+    return result[0];
   }
 
   async deleteCategory(id: string): Promise<boolean> {
-    return this.categories.delete(id);
+    const result = await db.delete(categories).where(eq(categories.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Products
   async getProducts(): Promise<ProductWithCategory[]> {
-    return Array.from(this.products.values()).map(product => ({
-      ...product,
-      category: product.categoryId ? this.categories.get(product.categoryId) : undefined
+    const result = await db
+      .select()
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id));
+    
+    return result.map(row => ({
+      ...row.products,
+      category: row.categories || undefined
     }));
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
-    return this.products.get(id);
+    const result = await db.select().from(products).where(eq(products.id, id)).limit(1);
+    return result[0];
   }
 
   async getProductBySku(sku: string): Promise<Product | undefined> {
-    return Array.from(this.products.values()).find(product => product.sku === sku);
+    const result = await db.select().from(products).where(eq(products.sku, sku)).limit(1);
+    return result[0];
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const product: Product = { 
-      ...insertProduct, 
-      id: randomUUID(),
-      createdAt: new Date(),
-      description: insertProduct.description || null,
-      categoryId: insertProduct.categoryId || null,
-      imageUrl: insertProduct.imageUrl || null,
-      stock: insertProduct.stock || 0,
-      isActive: insertProduct.isActive ?? true
-    };
-    this.products.set(product.id, product);
-    return product;
+    const result = await db.insert(products).values(insertProduct).returning();
+    return result[0];
   }
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<Product | undefined> {
-    const product = this.products.get(id);
-    if (!product) return undefined;
-    const updated = { ...product, ...updates };
-    this.products.set(id, updated);
-    return updated;
+    const result = await db.update(products).set(updates).where(eq(products.id, id)).returning();
+    return result[0];
   }
 
   async deleteProduct(id: string): Promise<boolean> {
-    return this.products.delete(id);
+    const result = await db.delete(products).where(eq(products.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async updateProductStock(id: string, quantity: number): Promise<boolean> {
-    const product = this.products.get(id);
+    const product = await this.getProduct(id);
     if (!product) return false;
-    product.stock = Math.max(0, product.stock + quantity);
-    this.products.set(id, product);
+    
+    const newStock = Math.max(0, product.stock + quantity);
+    await db.update(products).set({ stock: newStock }).where(eq(products.id, id));
     return true;
   }
 
   // Customers
   async getCustomers(): Promise<Customer[]> {
-    return Array.from(this.customers.values());
+    return await db.select().from(customers);
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    return this.customers.get(id);
+    const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+    return result[0];
   }
 
   async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
-    return Array.from(this.customers.values()).find(customer => customer.phone === phone);
+    const result = await db.select().from(customers).where(eq(customers.phone, phone)).limit(1);
+    return result[0];
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const customer: Customer = { 
-      ...insertCustomer, 
-      id: randomUUID(),
-      loyaltyPoints: 0,
-      createdAt: new Date(),
-      phone: insertCustomer.phone || null,
-      email: insertCustomer.email || null
-    };
-    this.customers.set(customer.id, customer);
-    return customer;
+    const result = await db.insert(customers).values(insertCustomer).returning();
+    return result[0];
   }
 
   async updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer | undefined> {
-    const customer = this.customers.get(id);
-    if (!customer) return undefined;
-    const updated = { ...customer, ...updates };
-    this.customers.set(id, updated);
-    return updated;
+    const result = await db.update(customers).set(updates).where(eq(customers.id, id)).returning();
+    return result[0];
   }
 
   async updateCustomerLoyaltyPoints(id: string, points: number): Promise<boolean> {
-    const customer = this.customers.get(id);
+    const customer = await this.getCustomer(id);
     if (!customer) return false;
-    customer.loyaltyPoints += points;
-    this.customers.set(id, customer);
+    
+    const newPoints = customer.loyaltyPoints + points;
+    await db.update(customers).set({ loyaltyPoints: newPoints }).where(eq(customers.id, id));
     return true;
   }
 
   // Shifts
   async getCurrentShift(userId: string): Promise<Shift | undefined> {
-    return Array.from(this.shifts.values()).find(shift => 
-      shift.userId === userId && shift.status === "open"
-    );
+    const result = await db
+      .select()
+      .from(shifts)
+      .where(and(eq(shifts.userId, userId), eq(shifts.status, "open")))
+      .limit(1);
+    return result[0];
   }
 
   async createShift(insertShift: InsertShift): Promise<Shift> {
-    const shift: Shift = { 
-      ...insertShift, 
-      id: randomUUID(),
-      startTime: new Date(),
-      status: "open",
-      endTime: null,
-      endingCash: null
-    };
-    this.shifts.set(shift.id, shift);
-    return shift;
+    const result = await db.insert(shifts).values(insertShift).returning();
+    return result[0];
   }
 
   async closeShift(id: string, endingCash: number): Promise<Shift | undefined> {
-    const shift = this.shifts.get(id);
-    if (!shift) return undefined;
-    shift.endTime = new Date();
-    shift.endingCash = endingCash.toString();
-    shift.status = "closed";
-    this.shifts.set(id, shift);
-    return shift;
+    const result = await db
+      .update(shifts)
+      .set({ 
+        endTime: new Date(), 
+        endingCash: endingCash.toString(), 
+        status: "closed" 
+      })
+      .where(eq(shifts.id, id))
+      .returning();
+    return result[0];
   }
 
   async getShiftSummary(id: string): Promise<ShiftSummary | undefined> {
-    const shift = this.shifts.get(id);
-    if (!shift) return undefined;
+    const shift = await db.select().from(shifts).where(eq(shifts.id, id)).limit(1);
+    if (!shift[0]) return undefined;
 
-    const shiftTransactions = Array.from(this.transactions.values())
-      .filter(t => t.shiftId === id);
+    const shiftTransactions = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.shiftId, id));
 
     const totalSales = shiftTransactions
       .reduce((sum, t) => sum + parseFloat(t.total), 0)
@@ -372,7 +229,7 @@ export class MemStorage implements IStorage {
       .toString();
 
     return {
-      shift,
+      shift: shift[0],
       totalSales,
       totalTransactions: shiftTransactions.length,
       cashSales,
@@ -382,125 +239,164 @@ export class MemStorage implements IStorage {
 
   // Transactions
   async getTransactions(shiftId?: string): Promise<TransactionWithItems[]> {
-    const transactions = Array.from(this.transactions.values())
-      .filter(t => !shiftId || t.shiftId === shiftId);
-
-    return transactions.map(transaction => ({
-      ...transaction,
-      items: (this.transactionItems.get(transaction.id) || []).map(item => ({
-        ...item,
-        product: this.products.get(item.productId)!
-      })),
-      customer: transaction.customerId ? this.customers.get(transaction.customerId) : undefined
-    }));
+    const query = shiftId 
+      ? db.select().from(transactions).where(eq(transactions.shiftId, shiftId))
+      : db.select().from(transactions);
+    
+    const txns = await query;
+    
+    const result: TransactionWithItems[] = [];
+    for (const txn of txns) {
+      const items = await db
+        .select()
+        .from(transactionItems)
+        .leftJoin(products, eq(transactionItems.productId, products.id))
+        .where(eq(transactionItems.transactionId, txn.id));
+      
+      const customer = txn.customerId 
+        ? await this.getCustomer(txn.customerId)
+        : undefined;
+      
+      result.push({
+        ...txn,
+        items: items.map(item => ({
+          ...item.transaction_items,
+          product: item.products!
+        })),
+        customer
+      });
+    }
+    
+    return result;
   }
 
   async getTransaction(id: string): Promise<TransactionWithItems | undefined> {
-    const transaction = this.transactions.get(id);
-    if (!transaction) return undefined;
+    const txn = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    if (!txn[0]) return undefined;
+
+    const items = await db
+      .select()
+      .from(transactionItems)
+      .leftJoin(products, eq(transactionItems.productId, products.id))
+      .where(eq(transactionItems.transactionId, id));
+    
+    const customer = txn[0].customerId 
+      ? await this.getCustomer(txn[0].customerId)
+      : undefined;
 
     return {
-      ...transaction,
-      items: (this.transactionItems.get(id) || []).map(item => ({
-        ...item,
-        product: this.products.get(item.productId)!
+      ...txn[0],
+      items: items.map(item => ({
+        ...item.transaction_items,
+        product: item.products!
       })),
-      customer: transaction.customerId ? this.customers.get(transaction.customerId) : undefined
+      customer
     };
   }
 
   async getTransactionByReceiptNumber(receiptNumber: string): Promise<TransactionWithItems | undefined> {
-    const transaction = Array.from(this.transactions.values())
-      .find(t => t.receiptNumber === receiptNumber);
+    const txn = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.receiptNumber, receiptNumber))
+      .limit(1);
     
-    if (!transaction) return undefined;
+    if (!txn[0]) return undefined;
+
+    const items = await db
+      .select()
+      .from(transactionItems)
+      .leftJoin(products, eq(transactionItems.productId, products.id))
+      .where(eq(transactionItems.transactionId, txn[0].id));
+    
+    const customer = txn[0].customerId 
+      ? await this.getCustomer(txn[0].customerId)
+      : undefined;
 
     return {
-      ...transaction,
-      items: (this.transactionItems.get(transaction.id) || []).map(item => ({
-        ...item,
-        product: this.products.get(item.productId)!
+      ...txn[0],
+      items: items.map(item => ({
+        ...item.transaction_items,
+        product: item.products!
       })),
-      customer: transaction.customerId ? this.customers.get(transaction.customerId) : undefined
+      customer
     };
   }
 
   async createTransaction(insertTransaction: InsertTransaction, items: InsertTransactionItem[]): Promise<TransactionWithItems> {
-    const transaction: Transaction = { 
-      ...insertTransaction, 
-      id: randomUUID(),
-      receiptNumber: `R${Date.now()}`,
-      createdAt: new Date(),
-      status: insertTransaction.status || "completed",
-      customerId: insertTransaction.customerId || null,
-      receivedAmount: insertTransaction.receivedAmount || null,
-      changeAmount: insertTransaction.changeAmount || null,
-      isOffline: insertTransaction.isOffline ?? false
-    };
-
-    const transactionItems: TransactionItem[] = items.map(item => ({
+    const txn = await db.insert(transactions).values(insertTransaction).returning();
+    
+    const itemsWithTransactionId = items.map(item => ({
       ...item,
-      id: randomUUID(),
-      transactionId: transaction.id
+      transactionId: txn[0].id
     }));
-
-    this.transactions.set(transaction.id, transaction);
-    this.transactionItems.set(transaction.id, transactionItems);
-
-    // Update product stock
-    for (const item of transactionItems) {
+    
+    const insertedItems = await db.insert(transactionItems).values(itemsWithTransactionId).returning();
+    
+    for (const item of insertedItems) {
       await this.updateProductStock(item.productId, -item.quantity);
     }
+    
+    const itemsWithProducts = await Promise.all(
+      insertedItems.map(async (item) => ({
+        ...item,
+        product: (await this.getProduct(item.productId))!
+      }))
+    );
+    
+    const customer = txn[0].customerId 
+      ? await this.getCustomer(txn[0].customerId)
+      : undefined;
 
     return {
-      ...transaction,
-      items: transactionItems.map(item => ({
-        ...item,
-        product: this.products.get(item.productId)!
-      })),
-      customer: transaction.customerId ? this.customers.get(transaction.customerId) : undefined
+      ...txn[0],
+      items: itemsWithProducts,
+      customer
     };
   }
 
   async updateTransactionStatus(id: string, status: string): Promise<boolean> {
-    const transaction = this.transactions.get(id);
-    if (!transaction) return false;
-    transaction.status = status;
-    this.transactions.set(id, transaction);
-    return true;
+    const result = await db.update(transactions).set({ status }).where(eq(transactions.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Returns
   async getReturns(): Promise<(Return & { originalTransaction: Transaction })[]> {
-    return Array.from(this.returns.values()).map(returnItem => ({
-      ...returnItem,
-      originalTransaction: this.transactions.get(returnItem.originalTransactionId)!
-    }));
+    const returnRecords = await db.select().from(returns);
+    
+    const result = await Promise.all(
+      returnRecords.map(async (returnRecord) => {
+        const originalTxn = await db
+          .select()
+          .from(transactions)
+          .where(eq(transactions.id, returnRecord.originalTransactionId))
+          .limit(1);
+        
+        return {
+          ...returnRecord,
+          originalTransaction: originalTxn[0]
+        };
+      })
+    );
+    
+    return result;
   }
 
   async createReturn(insertReturn: InsertReturn, items: InsertReturnItem[]): Promise<Return> {
-    const returnRecord: Return = { 
-      ...insertReturn, 
-      id: randomUUID(),
-      createdAt: new Date(),
-      reason: insertReturn.reason || null
-    };
-
-    const returnItems: ReturnItem[] = items.map(item => ({
+    const returnRecord = await db.insert(returns).values(insertReturn).returning();
+    
+    const itemsWithReturnId = items.map(item => ({
       ...item,
-      id: randomUUID(),
-      returnId: returnRecord.id
+      returnId: returnRecord[0].id
     }));
-
-    this.returns.set(returnRecord.id, returnRecord);
-    this.returnItems.set(returnRecord.id, returnItems);
-
-    // Update product stock (add back returned items)
-    for (const item of returnItems) {
+    
+    const insertedItems = await db.insert(returnItems).values(itemsWithReturnId).returning();
+    
+    for (const item of insertedItems) {
       await this.updateProductStock(item.productId, item.quantity);
     }
-
-    return returnRecord;
+    
+    return returnRecord[0];
   }
 
   // Analytics
@@ -510,38 +406,41 @@ export class MemStorage implements IStorage {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const dayTransactions = Array.from(this.transactions.values())
-      .filter(t => t.createdAt >= startOfDay && t.createdAt <= endOfDay);
+    const dayTransactions = await db
+      .select()
+      .from(transactions)
+      .where(and(
+        gte(transactions.createdAt, startOfDay),
+        lte(transactions.createdAt, endOfDay)
+      ));
 
     const revenue = dayTransactions.reduce((sum, t) => sum + parseFloat(t.total), 0);
-    const transactions = dayTransactions.length;
-    const averageCheck = transactions > 0 ? revenue / transactions : 0;
+    const transactionCount = dayTransactions.length;
+    const averageCheck = transactionCount > 0 ? revenue / transactionCount : 0;
 
-    return { revenue, transactions, averageCheck };
+    return { revenue, transactions: transactionCount, averageCheck };
   }
 
   async getTopProducts(limit: number): Promise<Array<{ product: Product; sold: number }>> {
-    const productSales: Map<string, number> = new Map();
+    const result = await db
+      .select({
+        productId: transactionItems.productId,
+        sold: sql<number>`CAST(SUM(${transactionItems.quantity}) AS INTEGER)`
+      })
+      .from(transactionItems)
+      .groupBy(transactionItems.productId)
+      .orderBy(desc(sql`SUM(${transactionItems.quantity})`))
+      .limit(limit);
 
-    // Count sales for each product
-    for (const items of Array.from(this.transactionItems.values())) {
-      for (const item of items) {
-        const current = productSales.get(item.productId) || 0;
-        productSales.set(item.productId, current + item.quantity);
-      }
-    }
+    const topProducts = await Promise.all(
+      result.map(async (item) => ({
+        product: (await this.getProduct(item.productId))!,
+        sold: item.sold
+      }))
+    );
 
-    // Sort and limit
-    const sortedProducts = Array.from(productSales.entries())
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, limit)
-      .map(([productId, sold]) => ({
-        product: this.products.get(productId)!,
-        sold
-      }));
-
-    return sortedProducts;
+    return topProducts;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();
