@@ -7,8 +7,16 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema } from "@shared/schema";
+import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, type User } from "@shared/schema";
 import { z } from "zod";
+
+// Type for authenticated user (without password)
+export type AuthUser = Omit<User, 'password'>;
+
+// Type for authenticated requests
+export interface AuthenticatedRequest extends Request {
+  user: AuthUser;
+}
 
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -21,7 +29,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 // Role-based authorization middleware
 function requireRole(role: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.isAuthenticated() && (req.user as any)?.role === role) {
+    if (req.isAuthenticated() && req.user && (req.user as AuthUser).role === role) {
       return next();
     }
     res.status(403).json({ message: "Недостаточно прав доступа" });
@@ -93,19 +101,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/session", (req, res) => {
     if (req.isAuthenticated() && req.user) {
-      const { password, ...userWithoutPassword } = req.user as any;
-      return res.json({ user: userWithoutPassword });
+      return res.json({ user: req.user as AuthUser });
     }
     res.status(401).json({ message: "Не авторизован" });
   });
 
   // User management routes (admin only)
-  app.get("/api/users", requireAuth, async (req, res) => {
+  app.get("/api/users", requireAuth, requireRole('admin'), async (req, res) => {
     try {
-      const currentUser = req.user as any;
-      if (currentUser.role !== 'admin') {
-        return res.status(403).json({ message: "Доступ запрещен" });
-      }
       const users = await storage.getAllUsers();
       // Remove passwords from response
       const usersWithoutPasswords = users.map(({ password, ...user }) => user);
@@ -115,13 +118,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAuth, async (req, res) => {
+  app.post("/api/users", requireAuth, requireRole('admin'), async (req, res) => {
     try {
-      const currentUser = req.user as any;
-      if (currentUser.role !== 'admin') {
-        return res.status(403).json({ message: "Доступ запрещен" });
-      }
-      
       const { username, password, role, email } = req.body;
       
       if (!username || !password || !role) {
@@ -143,13 +141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAuth, async (req, res) => {
+  app.put("/api/users/:id", requireAuth, requireRole('admin'), async (req, res) => {
     try {
-      const currentUser = req.user as any;
-      if (currentUser.role !== 'admin') {
-        return res.status(403).json({ message: "Доступ запрещен" });
-      }
-      
       const { id } = req.params;
       const { username, password, role, email } = req.body;
       
@@ -173,14 +166,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, async (req, res) => {
+  app.delete("/api/users/:id", requireAuth, requireRole('admin'), async (req, res) => {
     try {
-      const currentUser = req.user as any;
-      if (currentUser.role !== 'admin') {
-        return res.status(403).json({ message: "Доступ запрещен" });
-      }
-      
       const { id } = req.params;
+      const currentUser = req.user as AuthUser;
       
       // Prevent deleting yourself
       if (currentUser.id === id) {
