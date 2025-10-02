@@ -13,25 +13,27 @@ export default function PaymentModal() {
   const { t } = useLanguage();
   const { formatCurrency } = useFormatters();
   const currentShift = useSessionStore((state) => state.currentShift);
-  const [receivedAmount, setReceivedAmount] = useState(0);
+  const [receivedAmountCents, setReceivedAmountCents] = useState(0);
 
+  const receivedAmount = receivedAmountCents / 100;
   const change = Math.max(0, receivedAmount - paymentModal.amount);
   const canProcess = receivedAmount >= paymentModal.amount && !!currentShift;
 
   useEffect(() => {
-    setReceivedAmount(0);
+    setReceivedAmountCents(0);
   }, [paymentModal.isOpen]);
 
   const handleNumberClick = (value: string) => {
     if (value === "00") {
-      setReceivedAmount(prev => prev * 100);
+      setReceivedAmountCents(prev => prev * 100);
     } else {
-      setReceivedAmount(prev => parseInt(prev.toString() + value));
+      const digit = parseInt(value);
+      setReceivedAmountCents(prev => prev * 10 + digit);
     }
   };
 
   const handleBackspace = () => {
-    setReceivedAmount(prev => Math.floor(prev / 10));
+    setReceivedAmountCents(prev => Math.floor(prev / 10));
   };
 
   const handleProcess = () => {
