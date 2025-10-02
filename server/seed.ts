@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { users, categories, products } from "@shared/schema";
 import ws from "ws";
+import bcrypt from "bcrypt";
 
 const db = drizzle({
   connection: process.env.DATABASE_URL!,
@@ -88,9 +89,10 @@ async function seed() {
     }
   ]);
 
+  const hashedPassword = await bcrypt.hash("password", 10);
   await db.insert(users).values({
     username: "cashier",
-    password: "password",
+    password: hashedPassword,
     role: "cashier",
     email: "cashier@pos.local"
   });

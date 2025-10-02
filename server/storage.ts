@@ -324,35 +324,46 @@ export class PostgresStorage implements IStorage {
   }
 
   async createTransaction(insertTransaction: InsertTransaction, items: InsertTransactionItem[]): Promise<TransactionWithItems> {
-    const txn = await db.insert(transactions).values(insertTransaction).returning();
-    
-    const itemsWithTransactionId = items.map(item => ({
-      ...item,
-      transactionId: txn[0].id
-    }));
-    
-    const insertedItems = await db.insert(transactionItems).values(itemsWithTransactionId).returning();
-    
-    for (const item of insertedItems) {
-      await this.updateProductStock(item.productId, -item.quantity);
-    }
-    
-    const itemsWithProducts = await Promise.all(
-      insertedItems.map(async (item) => ({
+    return await db.transaction(async (tx) => {
+      const txn = await tx.insert(transactions).values(insertTransaction).returning();
+      
+      const itemsWithTransactionId = items.map(item => ({
         ...item,
-        product: (await this.getProduct(item.productId))!
-      }))
-    );
-    
-    const customer = txn[0].customerId 
-      ? await this.getCustomer(txn[0].customerId)
-      : undefined;
+        transactionId: txn[0].id
+      }));
+      
+      const insertedItems = await tx.insert(transactionItems).values(itemsWithTransactionId).returning();
+      
+      for (const item of insertedItems) {
+        const product = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
+        if (product[0]) {
+          const newStock = Math.max(0, product[0].stock - item.quantity);
+          await tx.update(products)
+            .set({ stock: newStock })
+            .where(eq(products.id, item.productId));
+        }
+      }
+      
+      const itemsWithProducts = await Promise.all(
+        insertedItems.map(async (item) => {
+          const product = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
+          return {
+            ...item,
+            product: product[0]!
+          };
+        })
+      );
+      
+      const customer = txn[0].customerId 
+        ? (await tx.select().from(customers).where(eq(customers.id, txn[0].customerId)).limit(1))[0]
+        : undefined;
 
-    return {
-      ...txn[0],
-      items: itemsWithProducts,
-      customer
-    };
+      return {
+        ...txn[0],
+        items: itemsWithProducts,
+        customer
+      };
+    });
   }
 
   async updateTransactionStatus(id: string, status: string): Promise<boolean> {
@@ -383,20 +394,27 @@ export class PostgresStorage implements IStorage {
   }
 
   async createReturn(insertReturn: InsertReturn, items: InsertReturnItem[]): Promise<Return> {
-    const returnRecord = await db.insert(returns).values(insertReturn).returning();
-    
-    const itemsWithReturnId = items.map(item => ({
-      ...item,
-      returnId: returnRecord[0].id
-    }));
-    
-    const insertedItems = await db.insert(returnItems).values(itemsWithReturnId).returning();
-    
-    for (const item of insertedItems) {
-      await this.updateProductStock(item.productId, item.quantity);
-    }
-    
-    return returnRecord[0];
+    return await db.transaction(async (tx) => {
+      const returnRecord = await tx.insert(returns).values(insertReturn).returning();
+      
+      const itemsWithReturnId = items.map(item => ({
+        ...item,
+        returnId: returnRecord[0].id
+      }));
+      
+      const insertedItems = await tx.insert(returnItems).values(itemsWithReturnId).returning();
+      
+      for (const item of insertedItems) {
+        const product = await tx.select().from(products).where(eq(products.id, item.productId)).limit(1);
+        if (product[0]) {
+          await tx.update(products)
+            .set({ stock: product[0].stock + item.quantity })
+            .where(eq(products.id, item.productId));
+        }
+      }
+      
+      return returnRecord[0];
+    });
   }
 
   // Analytics

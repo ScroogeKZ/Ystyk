@@ -1,10 +1,67 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcrypt";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import type { User } from "@shared/schema";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session configuration
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "pos-system-secret-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// Passport configuration
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(
+  new LocalStrategy(async (username, password, done) => {
+    try {
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return done(null, false, { message: "Неверное имя пользователя или пароль" });
+      }
+
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return done(null, false, { message: "Неверное имя пользователя или пароль" });
+      }
+
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
+  })
+);
+
+passport.serializeUser((user: Express.User, done) => {
+  done(null, (user as User).id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await storage.getUser(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,12 +96,16 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    log(`ERROR ${req.method} ${req.path}: ${message}`);
+    console.error(err);
+
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after

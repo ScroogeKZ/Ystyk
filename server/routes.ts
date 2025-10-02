@@ -1,12 +1,31 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
+import passport from "passport";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
 import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Authentication middleware
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: "Необходима авторизация" });
+}
+
+// Role-based authorization middleware
+function requireRole(role: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (req.isAuthenticated() && (req.user as any)?.role === role) {
+      return next();
+    }
+    res.status(403).json({ message: "Недостаточно прав доступа" });
+  };
+}
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "attached_assets", "products");
@@ -43,8 +62,45 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes (public)
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Ошибка авторизации" });
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        const { password, ...userWithoutPassword } = user;
+        return res.json({ user: userWithoutPassword });
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Ошибка при выходе" });
+      }
+      res.json({ message: "Успешный выход" });
+    });
+  });
+
+  app.get("/api/auth/session", (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      const { password, ...userWithoutPassword } = req.user as any;
+      return res.json({ user: userWithoutPassword });
+    }
+    res.status(401).json({ message: "Не авторизован" });
+  });
+
+  // All routes below require authentication
   // Products
-  app.get("/api/products", async (req, res) => {
+  app.get("/api/products", requireAuth, async (req, res) => {
     try {
       const products = await storage.getProducts();
       res.json(products);
@@ -53,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requireAuth, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(productData);
@@ -63,10 +119,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/products/:id", async (req, res) => {
+  app.put("/api/products/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const updates = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(id, updates);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
@@ -77,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteProduct(id);
@@ -91,7 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Product Image Upload
-  app.post("/api/products/upload-image", upload.single('image'), async (req, res) => {
+  app.post("/api/products/upload-image", requireAuth, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No image file provided" });
@@ -109,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/assets/products", express.static(path.join(process.cwd(), "attached_assets", "products")));
 
   // Categories
-  app.get("/api/categories", async (req, res) => {
+  app.get("/api/categories", requireAuth, async (req, res) => {
     try {
       const categories = await storage.getCategories();
       res.json(categories);
@@ -119,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Customers
-  app.get("/api/customers", async (req, res) => {
+  app.get("/api/customers", requireAuth, async (req, res) => {
     try {
       const customers = await storage.getCustomers();
       res.json(customers);
@@ -128,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", requireAuth, async (req, res) => {
     try {
       const customerData = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(customerData);
@@ -138,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/customers/phone/:phone", async (req, res) => {
+  app.get("/api/customers/phone/:phone", requireAuth, async (req, res) => {
     try {
       const { phone } = req.params;
       const customer = await storage.getCustomerByPhone(phone);
@@ -152,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shifts
-  app.get("/api/shifts/current/:userId", async (req, res) => {
+  app.get("/api/shifts/current/:userId", requireAuth, async (req, res) => {
     try {
       const { userId } = req.params;
       const shift = await storage.getCurrentShift(userId);
@@ -162,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/shifts", async (req, res) => {
+  app.post("/api/shifts", requireAuth, async (req, res) => {
     try {
       const shiftData = insertShiftSchema.parse(req.body);
       const shift = await storage.createShift(shiftData);
@@ -172,10 +228,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/shifts/:id/close", async (req, res) => {
+  app.put("/api/shifts/:id/close", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { endingCash } = req.body;
+      const closeShiftSchema = z.object({
+        endingCash: z.number().min(0, "Конечная сумма не может быть отрицательной")
+      });
+      const { endingCash } = closeShiftSchema.parse(req.body);
       const shift = await storage.closeShift(id, endingCash);
       if (!shift) {
         return res.status(404).json({ message: "Shift not found" });
@@ -186,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/shifts/:id/summary", async (req, res) => {
+  app.get("/api/shifts/:id/summary", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const summary = await storage.getShiftSummary(id);
@@ -200,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transactions
-  app.get("/api/transactions", async (req, res) => {
+  app.get("/api/transactions", requireAuth, async (req, res) => {
     try {
       const { shiftId } = req.query;
       const transactions = await storage.getTransactions(shiftId as string);
@@ -210,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/transactions/receipt/:receiptNumber", async (req, res) => {
+  app.get("/api/transactions/receipt/:receiptNumber", requireAuth, async (req, res) => {
     try {
       const { receiptNumber } = req.params;
       const transaction = await storage.getTransactionByReceiptNumber(receiptNumber);
@@ -223,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transactions", async (req, res) => {
+  app.post("/api/transactions", requireAuth, async (req, res) => {
     try {
       const { transaction, items } = req.body;
       const transactionData = insertTransactionSchema.parse(transaction);
@@ -237,7 +296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Returns
-  app.get("/api/returns", async (req, res) => {
+  app.get("/api/returns", requireAuth, async (req, res) => {
     try {
       const returns = await storage.getReturns();
       res.json(returns);
@@ -246,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/returns", async (req, res) => {
+  app.post("/api/returns", requireAuth, async (req, res) => {
     try {
       const { returnData, items } = req.body;
       const returnInfo = insertReturnSchema.parse(returnData);
@@ -260,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics
-  app.get("/api/analytics/daily/:date", async (req, res) => {
+  app.get("/api/analytics/daily/:date", requireAuth, async (req, res) => {
     try {
       const { date } = req.params;
       const targetDate = new Date(date);
@@ -271,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/top-products", async (req, res) => {
+  app.get("/api/analytics/top-products", requireAuth, async (req, res) => {
     try {
       const { limit = 10 } = req.query;
       const topProducts = await storage.getTopProducts(parseInt(limit as string));
