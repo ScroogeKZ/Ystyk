@@ -4,16 +4,41 @@
 This is a comprehensive Point of Sale system built with React/TypeScript frontend and Express/Node.js backend. The application features a modern interface for managing retail operations including sales, inventory, customer management, returns, and analytics.
 
 ## Recent Changes
+- **October 2, 2025**: Role-based access control and user management system implemented
+  - **User Management Features**:
+    - Created comprehensive user management UI for administrators (client/src/pages/users-management.tsx)
+    - Added API endpoints for user CRUD operations (GET/POST/PUT/DELETE /api/users)
+    - Implemented role-based access control with two roles: admin and cashier
+    - Admin can create, edit, and delete user accounts through the UI
+    - Password validation: required on create, optional on edit (preserves existing password if blank)
+  - **Role-Based Access**:
+    - Sidebar dynamically filters tabs based on user role
+    - Admin has full access to all features including: users, reports, monitoring, analytics, hardware, promotions, acceptance, audit, writeoffs
+    - Cashier has limited access to: sales, shift, inventory, loyalty, customers, returns
+    - "Пользователи" (Users) tab only visible to administrators
+  - **Security**:
+    - All user management endpoints protected by admin-only authorization
+    - Passwords hashed with bcrypt before storage
+    - Users cannot delete their own account
+    - Session info displays current user's username and role in sidebar
+  - **Database**:
+    - Seed script updated to create both admin and cashier users
+    - Admin credentials: username "admin", password "admin123"
+    - Cashier credentials: username "cashier", password "password"
+  - **UI Improvements**:
+    - Removed default credentials display from login page for better security
+    - User role badge with icons in users list
+    - Conditional password field label based on create/edit mode
+  - **RESULT**: Complete role-based access control system with user management capabilities
 - **October 2, 2025**: Critical authentication UI implementation (PRIORITY FIX)
   - **FIXED CRITICAL BUG**: System had complete backend authentication but ZERO frontend UI
-    - Created login page (client/src/pages/login.tsx) with form validation and default credentials display
+    - Created login page (client/src/pages/login.tsx) with form validation
     - Added ProtectedRoute component in App.tsx with session checking and automatic redirect
     - Implemented logout functionality in sidebar with complete state cleanup
     - Fixed React anti-pattern: moved setUserId from render to useEffect
     - Fixed incomplete logout: now clears both React Query cache AND Zustand session store
     - Removed hardcoded userId from session store for proper session hydration
   - **RESULT**: Authentication flow now fully functional - users can login, access protected pages, and logout cleanly
-  - **Test Credentials**: username "cashier", password "password"
   - **Documentation**: Created comprehensive BUG_REPORT.md with all issues and fixes
 - **October 2, 2025**: Complete security audit and critical vulnerability fixes
   - **Authentication & Authorization**: Implemented full Passport.js authentication with session management
@@ -94,16 +119,40 @@ This is a comprehensive Point of Sale system built with React/TypeScript fronten
 - **Returns & Refunds**: Full return processing capability
 - **Shift Management**: User shifts with cash reconciliation
 - **Analytics**: Sales reporting and performance metrics
+- **User Management**: Admin-only user account creation and management
+- **Role-Based Access Control**: Two-tier permission system (admin/cashier) with feature restrictions
 - **Multi-language Support**: Interface available in multiple languages
 - **Hardware Integration**: Barcode scanner and receipt printer support
 - **Offline Mode**: Capability for offline transactions
 - **Responsive Design**: Fully responsive UI that works across mobile, tablet, and desktop devices
 
 ### Database Schema
-- Users, Categories, Products, Customers
+- Users (with role-based access: admin, cashier)
+- Categories, Products, Customers
 - Shifts, Transactions, Transaction Items
 - Returns, Return Items
 - Comprehensive relationships and constraints
+
+### User Roles & Permissions
+- **Admin Role**: Full system access
+  - All cashier permissions
+  - User management (create, edit, delete users)
+  - Reports and analytics
+  - System monitoring
+  - Hardware configuration
+  - Inventory management (acceptance, audit, writeoffs)
+  - Promotions management
+- **Cashier Role**: Limited to operational functions
+  - Sales and transactions
+  - Shift management
+  - Basic inventory viewing
+  - Customer management
+  - Returns processing
+  - Loyalty program access
+
+### Default User Accounts
+- **Admin**: username "admin", password "admin123"
+- **Cashier**: username "cashier", password "password"
 
 ## Development Setup
 

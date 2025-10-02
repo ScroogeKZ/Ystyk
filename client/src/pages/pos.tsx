@@ -18,6 +18,7 @@ import AnalyticsTab from "@/components/pos/analytics-tab";
 import CustomersTab from "@/components/pos/customers-tab";
 import ReturnsTab from "@/components/pos/returns-tab";
 import ShiftTab from "@/components/pos/shift-tab";
+import UsersManagement from "@/pages/users-management";
 import PaymentModal from "@/components/pos/payment-modal";
 import EnhancedReceiptModal from "@/components/pos/enhanced-receipt-modal";
 import { usePOSStore } from "@/hooks/use-pos-store";
@@ -63,6 +64,8 @@ export default function POS() {
         return <ReturnsTab />;
       case "shift":
         return <ShiftTab />;
+      case "users":
+        return <UsersManagement />;
       default:
         return <SalesTab />;
     }

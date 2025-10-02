@@ -89,13 +89,23 @@ async function seed() {
     }
   ]);
 
-  const hashedPassword = await bcrypt.hash("password", 10);
-  await db.insert(users).values({
-    username: "cashier",
-    password: hashedPassword,
-    role: "cashier",
-    email: "cashier@pos.local"
-  });
+  const hashedPasswordCashier = await bcrypt.hash("password", 10);
+  const hashedPasswordAdmin = await bcrypt.hash("admin123", 10);
+  
+  await db.insert(users).values([
+    {
+      username: "cashier",
+      password: hashedPasswordCashier,
+      role: "cashier",
+      email: "cashier@pos.local"
+    },
+    {
+      username: "admin",
+      password: hashedPasswordAdmin,
+      role: "admin",
+      email: "admin@pos.local"
+    }
+  ]);
 
   console.log("Database seeded successfully!");
 }

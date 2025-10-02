@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
 import passport from "passport";
+import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -96,6 +97,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ user: userWithoutPassword });
     }
     res.status(401).json({ message: "Не авторизован" });
+  });
+
+  // User management routes (admin only)
+  app.get("/api/users", requireAuth, async (req, res) => {
+    try {
+      const currentUser = req.user as any;
+      if (currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Доступ запрещен" });
+      }
+      const users = await storage.getAllUsers();
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/users", requireAuth, async (req, res) => {
+    try {
+      const currentUser = req.user as any;
+      if (currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Доступ запрещен" });
+      }
+      
+      const { username, password, role, email } = req.body;
+      
+      if (!username || !password || !role) {
+        return res.status(400).json({ message: "Необходимы username, password и role" });
+      }
+      
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword,
+        role,
+        email: email || null
+      });
+      
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = req.user as any;
+      if (currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Доступ запрещен" });
+      }
+      
+      const { id } = req.params;
+      const { username, password, role, email } = req.body;
+      
+      const updates: any = {};
+      if (username) updates.username = username;
+      if (role) updates.role = role;
+      if (email !== undefined) updates.email = email;
+      if (password) {
+        updates.password = await bcrypt.hash(password, 10);
+      }
+      
+      const user = await storage.updateUser(id, updates);
+      if (!user) {
+        return res.status(404).json({ message: "Пользователь не найден" });
+      }
+      
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = req.user as any;
+      if (currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Доступ запрещен" });
+      }
+      
+      const { id } = req.params;
+      
+      // Prevent deleting yourself
+      if (currentUser.id === id) {
+        return res.status(400).json({ message: "Нельзя удалить свой аккаунт" });
+      }
+      
+      const success = await storage.deleteUser(id);
+      if (!success) {
+        return res.status(404).json({ message: "Пользователь не найден" });
+      }
+      
+      res.json({ message: "Пользователь удален" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // All routes below require authentication

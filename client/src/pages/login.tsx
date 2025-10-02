@@ -95,13 +95,6 @@ export default function Login() {
               {isLoading ? "Вход..." : "Войти"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Данные для входа по умолчанию:</p>
-            <p className="font-mono text-xs mt-1">
-              username: <span className="font-semibold">cashier</span><br/>
-              password: <span className="font-semibold">password</span>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

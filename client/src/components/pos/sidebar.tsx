@@ -8,6 +8,7 @@ import { useSessionStore } from "@/hooks/use-session-store";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { 
   ShoppingCart, 
   Package, 
@@ -19,7 +20,8 @@ import {
   Wifi,
   User,
   Settings,
-  LogOut
+  LogOut,
+  UserCog
 } from "lucide-react";
 
 interface SidebarProps {
@@ -33,6 +35,12 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const currentShift = useSessionStore((state) => state.currentShift);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const { data: session } = useQuery<{ user?: { id: string; username: string; role: string } }>({
+    queryKey: ["/api/auth/session"],
+  });
+
+  const isAdmin = session?.user?.role === 'admin';
 
   const handleLogout = async () => {
     try {
@@ -57,22 +65,28 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     }
   };
   
-  const tabs = [
-    { id: "sales", label: t.sidebar.sales, icon: ShoppingCart },
-    { id: "shift", label: t.sidebar.shift, icon: Clock },
-    { id: "inventory", label: t.sidebar.inventory, icon: Package },
-    { id: "acceptance", label: "Приемка", icon: Package },
-    { id: "audit", label: "Инвентаризация", icon: Package },
-    { id: "writeoffs", label: "Списания", icon: Package },
-    { id: "loyalty", label: "Лояльность", icon: User },
-    { id: "promotions", label: "Акции", icon: Package },
-    { id: "hardware", label: "Оборудование", icon: Settings },
-    { id: "reports", label: "Отчеты", icon: BarChart3 },
-    { id: "monitoring", label: "Мониторинг", icon: BarChart3 },
-    { id: "analytics", label: t.sidebar.analytics, icon: BarChart3 },
-    { id: "customers", label: t.sidebar.customers, icon: Users },
-    { id: "returns", label: t.sidebar.returns, icon: RotateCcw },
+  // Define all tabs with role restrictions
+  const allTabs = [
+    { id: "sales", label: t.sidebar.sales, icon: ShoppingCart, roles: ['admin', 'cashier'] },
+    { id: "shift", label: t.sidebar.shift, icon: Clock, roles: ['admin', 'cashier'] },
+    { id: "inventory", label: t.sidebar.inventory, icon: Package, roles: ['admin', 'cashier'] },
+    { id: "acceptance", label: "Приемка", icon: Package, roles: ['admin'] },
+    { id: "audit", label: "Инвентаризация", icon: Package, roles: ['admin'] },
+    { id: "writeoffs", label: "Списания", icon: Package, roles: ['admin'] },
+    { id: "loyalty", label: "Лояльность", icon: User, roles: ['admin', 'cashier'] },
+    { id: "promotions", label: "Акции", icon: Package, roles: ['admin'] },
+    { id: "hardware", label: "Оборудование", icon: Settings, roles: ['admin'] },
+    { id: "reports", label: "Отчеты", icon: BarChart3, roles: ['admin'] },
+    { id: "monitoring", label: "Мониторинг", icon: BarChart3, roles: ['admin'] },
+    { id: "analytics", label: t.sidebar.analytics, icon: BarChart3, roles: ['admin'] },
+    { id: "customers", label: t.sidebar.customers, icon: Users, roles: ['admin', 'cashier'] },
+    { id: "returns", label: t.sidebar.returns, icon: RotateCcw, roles: ['admin', 'cashier'] },
+    { id: "users", label: "Пользователи", icon: UserCog, roles: ['admin'] },
   ];
+
+  // Filter tabs based on user role
+  const userRole = session?.user?.role || 'cashier';
+  const tabs = allTabs.filter(tab => tab.roles.includes(userRole));
   return (
     <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col" data-testid="sidebar">
       {/* Header */}
@@ -141,8 +155,12 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <User className="text-sidebar-primary-foreground text-sm" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-sidebar-foreground">Кассир</p>
-            <p className="text-xs text-muted-foreground">{t.common.cashier}</p>
+            <p className="text-sm font-medium text-sidebar-foreground">
+              {session?.user?.username || "Пользователь"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? "Администратор" : t.common.cashier}
+            </p>
           </div>
         </div>
         <Button 

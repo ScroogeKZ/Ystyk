@@ -67,6 +67,7 @@ export default function GoodsAcceptanceTab() {
         stock: 50,
         description: null,
         categoryId: 'cat-1',
+        imageUrl: null,
         isActive: true,
         createdAt: new Date('2024-01-01'),
         category: { id: 'cat-1', name: 'Напитки', description: null }
@@ -91,6 +92,7 @@ export default function GoodsAcceptanceTab() {
         stock: 25,
         description: null,
         categoryId: 'cat-2',
+        imageUrl: null,
         isActive: true,
         createdAt: new Date('2024-01-02'),
         category: { id: 'cat-2', name: 'Выпечка', description: null }
