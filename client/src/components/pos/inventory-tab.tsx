@@ -230,10 +230,10 @@ export default function InventoryTab() {
   }
 
   return (
-    <div className="flex-1 p-6" data-testid="inventory-tab">
+    <div className="flex-1 p-3 sm:p-6" data-testid="inventory-tab">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Управление товарами</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Управление товарами</h1>
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
             setIsAddDialogOpen(open);
             if (!open) {
@@ -529,95 +529,97 @@ export default function InventoryTab() {
           </Dialog>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 sm:mb-6">
           <Input
             placeholder="Поиск товаров..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
             data-testid="search-inventory"
           />
         </div>
         
         {/* Inventory Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Товар</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Цена</TableHead>
-                <TableHead>Остаток</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.map((product) => {
-                const Icon = iconMap[product.category?.name || "default"] || iconMap.default;
-                return (
-                  <TableRow key={product.id} data-testid={`inventory-row-${product.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center overflow-hidden">
-                          {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Icon className="text-muted-foreground w-5 h-5" />
-                          )}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Товар</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Цена</TableHead>
+                  <TableHead>Остаток</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => {
+                  const Icon = iconMap[product.category?.name || "default"] || iconMap.default;
+                  return (
+                    <TableRow key={product.id} data-testid={`inventory-row-${product.id}`}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center overflow-hidden">
+                            {product.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Icon className="text-muted-foreground w-5 h-5" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-card-foreground">{product.name}</p>
+                            <p className="text-sm text-muted-foreground">{product.category?.name}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-card-foreground">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">{product.category?.name}</p>
+                      </TableCell>
+                      <TableCell className="text-card-foreground">{product.sku}</TableCell>
+                      <TableCell className="font-semibold text-card-foreground">₸{product.price}</TableCell>
+                      <TableCell className="text-card-foreground">{product.stock}</TableCell>
+                      <TableCell>
+                        {product.stock > 10 ? (
+                          <Badge className="bg-green-100 text-green-800">В наличии</Badge>
+                        ) : product.stock > 0 ? (
+                          <Badge variant="secondary">Мало</Badge>
+                        ) : (
+                          <Badge variant="destructive">Нет в наличии</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => handleEdit(product)}
+                            data-testid={`edit-product-${product.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => handleDelete(product.id)}
+                            data-testid={`delete-product-${product.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-card-foreground">{product.sku}</TableCell>
-                    <TableCell className="font-semibold text-card-foreground">₸{product.price}</TableCell>
-                    <TableCell className="text-card-foreground">{product.stock}</TableCell>
-                    <TableCell>
-                      {product.stock > 10 ? (
-                        <Badge className="bg-green-100 text-green-800">В наличии</Badge>
-                      ) : product.stock > 0 ? (
-                        <Badge variant="secondary">Мало</Badge>
-                      ) : (
-                        <Badge variant="destructive">Нет в наличии</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:bg-primary hover:text-primary-foreground"
-                          onClick={() => handleEdit(product)}
-                          data-testid={`edit-product-${product.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => handleDelete(product.id)}
-                          data-testid={`delete-product-${product.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
           
           {filteredProducts.length === 0 && (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               <p className="text-muted-foreground">Товары не найдены</p>
             </div>
           )}

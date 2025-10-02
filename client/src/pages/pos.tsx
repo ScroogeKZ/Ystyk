@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { Menu, ShoppingBag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "@/components/pos/sidebar";
 import SalesTab from "@/components/pos/sales-tab";
 import InventoryTab from "@/components/pos/inventory-tab";
@@ -18,10 +22,13 @@ import PaymentModal from "@/components/pos/payment-modal";
 import EnhancedReceiptModal from "@/components/pos/enhanced-receipt-modal";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import { useSyncCurrentShift } from "@/hooks/use-sync-current-shift";
+import { Badge } from "@/components/ui/badge";
 
 export default function POS() {
   const [activeTab, setActiveTab] = useState("sales");
-  const { paymentModal, receiptModal } = usePOSStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { paymentModal, receiptModal, cart } = usePOSStore();
+  const isMobile = useIsMobile();
   
   // Sync current shift with backend
   useSyncCurrentShift();
@@ -62,10 +69,45 @@ export default function POS() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground" data-testid="pos-main">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 flex overflow-hidden">
-        {renderTabContent()}
+    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground" data-testid="pos-main">
+      {/* Mobile Header */}
+      {isMobile && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" data-testid="mobile-menu">
+                <Menu className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <Sidebar activeTab={activeTab} onTabChange={(tab) => {
+                setActiveTab(tab);
+                setSidebarOpen(false);
+              }} />
+            </SheetContent>
+          </Sheet>
+          
+          <h1 className="text-lg font-bold">POS System</h1>
+          
+          <div className="relative">
+            {cart.length > 0 && (
+              <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                {cart.length}
+              </Badge>
+            )}
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        {!isMobile && <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />}
+        
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {renderTabContent()}
+        </div>
       </div>
       
       {paymentModal.isOpen && <PaymentModal />}

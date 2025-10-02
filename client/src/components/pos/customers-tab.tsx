@@ -73,13 +73,13 @@ export default function CustomersTab() {
   }
 
   return (
-    <div className="flex-1 p-6" data-testid="customers-tab">
+    <div className="flex-1 p-3 sm:p-6 overflow-auto" data-testid="customers-tab">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Клиенты</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Клиенты</h1>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="add-customer">
+              <Button className="w-full sm:w-auto" data-testid="add-customer">
                 <Plus className="w-4 h-4 mr-2" />
                 Добавить клиента
               </Button>
@@ -138,59 +138,61 @@ export default function CustomersTab() {
           </Dialog>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 sm:mb-6">
           <Input
             placeholder="Поиск клиентов..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
             data-testid="search-customers"
           />
         </div>
         
         {/* Customers Table */}
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Клиент</TableHead>
-                <TableHead>Телефон</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Бонусы</TableHead>
-                <TableHead>Дата регистрации</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id} data-testid={`customer-row-${customer.id}`}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-                        <User className="text-muted-foreground w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-card-foreground">{customer.name}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-card-foreground">{customer.phone || "-"}</TableCell>
-                  <TableCell className="text-card-foreground">{customer.email || "-"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500" />
-                      <span className="text-card-foreground">{customer.loyaltyPoints}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-card-foreground">
-                    {new Date(customer.createdAt).toLocaleDateString('ru-RU')}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Клиент</TableHead>
+                  <TableHead>Телефон</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Бонусы</TableHead>
+                  <TableHead>Дата регистрации</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id} data-testid={`customer-row-${customer.id}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                          <User className="text-muted-foreground w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-card-foreground">{customer.name}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-card-foreground">{customer.phone || "-"}</TableCell>
+                    <TableCell className="text-card-foreground">{customer.email || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        <span className="text-card-foreground">{customer.loyaltyPoints}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-card-foreground">
+                      {new Date(customer.createdAt).toLocaleDateString('ru-RU')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           
           {filteredCustomers.length === 0 && (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               <p className="text-muted-foreground">Клиенты не найдены</p>
             </div>
           )}
