@@ -232,48 +232,82 @@ export class PostgresStorage implements IStorage {
   }
 
   async closeShift(id: string, endingCash: number): Promise<Shift | undefined> {
-    const result = await db
-      .update(shifts)
-      .set({ 
-        endTime: new Date(), 
-        endingCash: endingCash.toString(), 
-        status: "closed" 
-      })
-      .where(eq(shifts.id, id))
-      .returning();
-    return result[0];
+    return await db.transaction(async (tx) => {
+      const shift = await tx
+        .select()
+        .from(shifts)
+        .where(eq(shifts.id, id))
+        .limit(1);
+      
+      if (!shift[0]) {
+        throw new Error('Смена не найдена');
+      }
+      
+      if (shift[0].status === 'closed') {
+        throw new Error('Смена уже закрыта');
+      }
+      
+      const result = await tx
+        .update(shifts)
+        .set({ 
+          endTime: new Date(), 
+          endingCash: endingCash.toString(), 
+          status: "closed" 
+        })
+        .where(eq(shifts.id, id))
+        .returning();
+      
+      return result[0];
+    });
   }
 
   async getShiftSummary(id: string): Promise<ShiftSummary | undefined> {
-    const shift = await db.select().from(shifts).where(eq(shifts.id, id)).limit(1);
-    if (!shift[0]) return undefined;
+    try {
+      const shift = await db.select().from(shifts).where(eq(shifts.id, id)).limit(1);
+      if (!shift[0]) {
+        return undefined;
+      }
 
-    const shiftTransactions = await db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.shiftId, id));
+      const shiftTransactions = await db
+        .select()
+        .from(transactions)
+        .where(eq(transactions.shiftId, id));
 
-    const totalSales = shiftTransactions
-      .reduce((sum, t) => sum + parseFloat(t.total), 0)
-      .toString();
+      if (shiftTransactions.length === 0) {
+        return {
+          shift: shift[0],
+          totalSales: "0",
+          totalTransactions: 0,
+          cashSales: "0",
+          cardSales: "0"
+        };
+      }
 
-    const cashSales = shiftTransactions
-      .filter(t => t.paymentMethod === "cash")
-      .reduce((sum, t) => sum + parseFloat(t.total), 0)
-      .toString();
+      const totalSales = shiftTransactions
+        .reduce((sum, t) => sum + parseFloat(t.total), 0)
+        .toString();
 
-    const cardSales = shiftTransactions
-      .filter(t => t.paymentMethod === "card")
-      .reduce((sum, t) => sum + parseFloat(t.total), 0)
-      .toString();
+      const cashSales = shiftTransactions
+        .filter(t => t.paymentMethod === "cash")
+        .reduce((sum, t) => sum + parseFloat(t.total), 0)
+        .toString();
 
-    return {
-      shift: shift[0],
-      totalSales,
-      totalTransactions: shiftTransactions.length,
-      cashSales,
-      cardSales
-    };
+      const cardSales = shiftTransactions
+        .filter(t => t.paymentMethod === "card")
+        .reduce((sum, t) => sum + parseFloat(t.total), 0)
+        .toString();
+
+      return {
+        shift: shift[0],
+        totalSales,
+        totalTransactions: shiftTransactions.length,
+        cashSales,
+        cardSales
+      };
+    } catch (error) {
+      console.error('Error in getShiftSummary:', error);
+      throw new Error('Не удалось получить сводку по смене');
+    }
   }
 
   // Transactions

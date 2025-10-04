@@ -56,3 +56,22 @@ This is a comprehensive Point of Sale system designed for retail operations. It 
 - **Database**: PostgreSQL
 - **Frontend Libraries**: React, Vite, shadcn/ui, Radix UI, TailwindCSS, Zustand, TanStack Query, Wouter.
 - **Backend Libraries**: Express.js, Drizzle ORM, Passport.js, bcrypt, express-session, connect-pg-simple, Zod.
+
+## Replit Setup (October 4, 2025)
+- **Database**: PostgreSQL database provisioned and configured with environment variables
+- **Workflow**: "Start application" workflow configured to run `npm run dev` on port 5000 with webview output
+- **Database Schema**: Successfully pushed to database using `npm run db:push`
+- **Seed Data**: Initial data seeded including:
+  - Admin user (username: `admin`, password: `admin123`)
+  - Cashier user (username: `cashier`, password: `password`)
+  - Sample categories (Beverages, Pastry, Snacks)
+  - Sample products (Espresso, Croissant, Orange Juice, Chicken Sandwich, Vanilla Ice Cream, Mineral Water)
+- **Dev Server**: Running on port 5000 with Vite HMR enabled
+- **Host Configuration**: Frontend server configured with `allowedHosts: true` in Vite setup to work with Replit's proxy
+
+## Development Commands
+- `npm run dev` - Start development server (frontend + backend on port 5000)
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run db:push` - Push database schema changes to PostgreSQL
+- `npx tsx server/seed.ts` - Seed database with initial data

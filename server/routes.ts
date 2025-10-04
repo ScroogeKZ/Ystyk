@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, type User } from "@shared/schema";
 import { z } from "zod";
@@ -35,6 +36,15 @@ function requireRole(role: string) {
     res.status(403).json({ message: "Недостаточно прав доступа" });
   };
 }
+
+// Rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 5, // максимум 5 попыток с одного IP
+  message: 'Слишком много попыток входа. Пожалуйста, попробуйте позже.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "attached_assets", "products");
@@ -72,7 +82,7 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes (public)
-  app.post("/api/auth/login", (req, res, next) => {
+  app.post("/api/auth/login", loginLimiter, (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         return next(err);
