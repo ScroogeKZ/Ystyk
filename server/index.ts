@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcrypt";
@@ -15,13 +16,25 @@ if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
   );
 }
 
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL environment variable must be set. " +
+    "Please configure your PostgreSQL database connection."
+  );
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session configuration
+// Session configuration with PostgreSQL store
+const PgSession = connectPgSimple(session);
 app.use(
   session({
+    store: new PgSession({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || "pos-system-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
