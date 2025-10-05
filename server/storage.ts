@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, users, products, categories, customers, shifts, transactions, transactionItems, returns, returnItems } from "@shared/schema";
+import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, type GoodsAcceptance, type InsertGoodsAcceptance, type InventoryAudit, type InsertInventoryAudit, type InventoryAuditItem, type InsertInventoryAuditItem, type WriteOff, type InsertWriteOff, type AuditLog, type InsertAuditLog, type CustomerTier, type InsertCustomerTier, users, products, categories, customers, shifts, transactions, transactionItems, returns, returnItems, goodsAcceptance, inventoryAudits, inventoryAuditItems, writeOffs, auditLogs, customerTiers } from "@shared/schema";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import ws from "ws";
@@ -56,6 +56,32 @@ export interface IStorage {
   // Analytics
   getDailySales(date: Date): Promise<{ revenue: number; transactions: number; averageCheck: number }>;
   getTopProducts(limit: number): Promise<Array<{ product: Product; sold: number }>>;
+  
+  // Goods Acceptance
+  getGoodsAcceptance(): Promise<any[]>;
+  createGoodsAcceptance(acceptance: any): Promise<any>;
+  updateGoodsAcceptanceStatus(id: string, status: string): Promise<boolean>;
+  
+  // Inventory Audits
+  getInventoryAudits(): Promise<any[]>;
+  getInventoryAudit(id: string): Promise<any | undefined>;
+  createInventoryAudit(audit: any): Promise<any>;
+  addAuditItem(auditId: string, item: any): Promise<any>;
+  updateAuditStatus(id: string, status: string, completedAt?: Date): Promise<boolean>;
+  
+  // Write-offs
+  getWriteOffs(): Promise<any[]>;
+  createWriteOff(writeOff: any): Promise<any>;
+  approveWriteOff(id: string, approvedBy: string): Promise<boolean>;
+  
+  // Audit Logs
+  createAuditLog(log: any): Promise<any>;
+  getAuditLogs(userId?: string, action?: string): Promise<any[]>;
+  
+  // Customer Tiers
+  getCustomerTiers(): Promise<any[]>;
+  createCustomerTier(tier: any): Promise<any>;
+  updateCustomerTier(id: string, tier: Partial<any>): Promise<any | undefined>;
 }
 
 const db = drizzle({
@@ -524,6 +550,143 @@ export class PostgresStorage implements IStorage {
     );
 
     return topProducts;
+  }
+
+  // Goods Acceptance
+  async getGoodsAcceptance(): Promise<GoodsAcceptance[]> {
+    return db.select().from(goodsAcceptance).orderBy(desc(goodsAcceptance.createdAt));
+  }
+
+  async createGoodsAcceptance(acceptance: InsertGoodsAcceptance): Promise<GoodsAcceptance> {
+    const [result] = await db.insert(goodsAcceptance).values(acceptance).returning();
+    
+    if (acceptance.status === 'accepted') {
+      await db.update(products)
+        .set({ stock: sql`stock + ${acceptance.actualQuantity}` })
+        .where(eq(products.id, acceptance.productId));
+    }
+    
+    return result;
+  }
+
+  async updateGoodsAcceptanceStatus(id: string, status: string): Promise<boolean> {
+    const [acceptance] = await db.select().from(goodsAcceptance).where(eq(goodsAcceptance.id, id));
+    if (!acceptance) return false;
+
+    await db.update(goodsAcceptance).set({ status }).where(eq(goodsAcceptance.id, id));
+    
+    if (status === 'accepted' && acceptance.status !== 'accepted') {
+      await db.update(products)
+        .set({ stock: sql`stock + ${acceptance.actualQuantity}` })
+        .where(eq(products.id, acceptance.productId));
+    }
+    
+    return true;
+  }
+
+  // Inventory Audits
+  async getInventoryAudits(): Promise<InventoryAudit[]> {
+    return db.select().from(inventoryAudits).orderBy(desc(inventoryAudits.createdAt));
+  }
+
+  async getInventoryAudit(id: string): Promise<InventoryAudit | undefined> {
+    const [result] = await db.select().from(inventoryAudits).where(eq(inventoryAudits.id, id));
+    return result;
+  }
+
+  async createInventoryAudit(audit: InsertInventoryAudit): Promise<InventoryAudit> {
+    const [result] = await db.insert(inventoryAudits).values(audit).returning();
+    return result;
+  }
+
+  async addAuditItem(auditId: string, item: InsertInventoryAuditItem): Promise<InventoryAuditItem> {
+    const [result] = await db.insert(inventoryAuditItems).values({ ...item, auditId }).returning();
+    return result;
+  }
+
+  async updateAuditStatus(id: string, status: string, completedAt?: Date): Promise<boolean> {
+    const updateData: any = { status };
+    if (completedAt) {
+      updateData.completedAt = completedAt;
+    }
+    
+    await db.update(inventoryAudits).set(updateData).where(eq(inventoryAudits.id, id));
+    return true;
+  }
+
+  // Write-offs
+  async getWriteOffs(): Promise<WriteOff[]> {
+    return db.select().from(writeOffs).orderBy(desc(writeOffs.createdAt));
+  }
+
+  async createWriteOff(writeOff: InsertWriteOff): Promise<WriteOff> {
+    return db.transaction(async (tx) => {
+      const [result] = await tx.insert(writeOffs).values(writeOff).returning();
+      
+      if (result.approved) {
+        await tx.update(products)
+          .set({ stock: sql`stock - ${result.quantity}` })
+          .where(eq(products.id, result.productId));
+      }
+      
+      return result;
+    });
+  }
+
+  async approveWriteOff(id: string, approvedBy: string): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const [writeOff] = await tx.select().from(writeOffs).where(eq(writeOffs.id, id));
+      if (!writeOff) return false;
+
+      await tx.update(writeOffs)
+        .set({ 
+          approved: true, 
+          approvedBy, 
+          approvedAt: new Date() 
+        })
+        .where(eq(writeOffs.id, id));
+
+      await tx.update(products)
+        .set({ stock: sql`stock - ${writeOff.quantity}` })
+        .where(eq(products.id, writeOff.productId));
+
+      return true;
+    });
+  }
+
+  // Audit Logs
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [result] = await db.insert(auditLogs).values(log).returning();
+    return result;
+  }
+
+  async getAuditLogs(userId?: string, action?: string): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs);
+    
+    const conditions = [];
+    if (userId) conditions.push(eq(auditLogs.userId, userId));
+    if (action) conditions.push(eq(auditLogs.action, action));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return query.orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Customer Tiers
+  async getCustomerTiers(): Promise<CustomerTier[]> {
+    return db.select().from(customerTiers).orderBy(customerTiers.minPoints);
+  }
+
+  async createCustomerTier(tier: InsertCustomerTier): Promise<CustomerTier> {
+    const [result] = await db.insert(customerTiers).values(tier).returning();
+    return result;
+  }
+
+  async updateCustomerTier(id: string, tier: Partial<CustomerTier>): Promise<CustomerTier | undefined> {
+    const [result] = await db.update(customerTiers).set(tier).where(eq(customerTiers.id, id)).returning();
+    return result;
   }
 }
 

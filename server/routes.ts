@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
-import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, type User } from "@shared/schema";
+import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, insertGoodsAcceptanceSchema, insertInventoryAuditSchema, insertInventoryAuditItemSchema, insertWriteOffSchema, insertAuditLogSchema, insertCustomerTierSchema, type User } from "@shared/schema";
 import { z } from "zod";
 
 // Type for authenticated user (without password)
@@ -482,6 +482,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(topProducts);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Goods Acceptance
+  app.get("/api/goods-acceptance", requireAuth, async (req, res) => {
+    try {
+      const acceptances = await storage.getGoodsAcceptance();
+      res.json(acceptances);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/goods-acceptance", requireAuth, productModificationLimiter, async (req, res) => {
+    try {
+      const acceptance = insertGoodsAcceptanceSchema.parse(req.body);
+      const result = await storage.createGoodsAcceptance(acceptance);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/goods-acceptance/:id/status", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const success = await storage.updateGoodsAcceptanceStatus(id, status);
+      if (!success) {
+        return res.status(404).json({ message: "Acceptance record not found" });
+      }
+      res.json({ message: "Status updated successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Inventory Audits
+  app.get("/api/inventory-audits", requireAuth, async (req, res) => {
+    try {
+      const audits = await storage.getInventoryAudits();
+      res.json(audits);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/inventory-audits/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const audit = await storage.getInventoryAudit(id);
+      if (!audit) {
+        return res.status(404).json({ message: "Audit not found" });
+      }
+      res.json(audit);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/inventory-audits", requireAuth, async (req, res) => {
+    try {
+      const audit = insertInventoryAuditSchema.parse(req.body);
+      const result = await storage.createInventoryAudit(audit);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/inventory-audits/:id/items", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const item = insertInventoryAuditItemSchema.parse(req.body);
+      const result = await storage.addAuditItem(id, item);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/inventory-audits/:id/status", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, completedAt } = req.body;
+      const success = await storage.updateAuditStatus(id, status, completedAt ? new Date(completedAt) : undefined);
+      if (!success) {
+        return res.status(404).json({ message: "Audit not found" });
+      }
+      res.json({ message: "Status updated successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Write-offs
+  app.get("/api/write-offs", requireAuth, async (req, res) => {
+    try {
+      const writeOffs = await storage.getWriteOffs();
+      res.json(writeOffs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/write-offs", requireAuth, productModificationLimiter, async (req, res) => {
+    try {
+      const writeOff = insertWriteOffSchema.parse(req.body);
+      const result = await storage.createWriteOff(writeOff);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/write-offs/:id/approve", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user as User;
+      const success = await storage.approveWriteOff(id, user.id);
+      if (!success) {
+        return res.status(404).json({ message: "Write-off not found" });
+      }
+      res.json({ message: "Write-off approved successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Audit Logs
+  app.get("/api/audit-logs", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { userId, action } = req.query;
+      const logs = await storage.getAuditLogs(userId as string, action as string);
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/audit-logs", requireAuth, async (req, res) => {
+    try {
+      const log = insertAuditLogSchema.parse(req.body);
+      const result = await storage.createAuditLog(log);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Customer Tiers
+  app.get("/api/customer-tiers", requireAuth, async (req, res) => {
+    try {
+      const tiers = await storage.getCustomerTiers();
+      res.json(tiers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/customer-tiers", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const tier = insertCustomerTierSchema.parse(req.body);
+      const result = await storage.createCustomerTier(tier);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/customer-tiers/:id", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = insertCustomerTierSchema.partial().parse(req.body);
+      const result = await storage.updateCustomerTier(id, updates);
+      if (!result) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   });
 
