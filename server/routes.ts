@@ -46,6 +46,42 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiting for user management operations (stricter for admin operations)
+const userManagementLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 20, // максимум 20 операций с пользователями за 15 минут
+  message: 'Слишком много операций управления пользователями. Попробуйте позже.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for product modifications
+const productModificationLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 минут
+  max: 50, // максимум 50 изменений продуктов за 5 минут
+  message: 'Слишком много операций с продуктами. Попробуйте позже.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for transactions (sales)
+const transactionLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 минута
+  max: 30, // максимум 30 транзакций в минуту (достаточно для быстрых продаж)
+  message: 'Слишком много транзакций. Подождите немного.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for returns processing
+const returnsLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 минут
+  max: 20, // максимум 20 возвратов за 5 минут
+  message: 'Слишком много операций возврата. Попробуйте позже.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), "attached_assets", "products");
 
@@ -128,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAuth, requireRole('admin'), async (req, res) => {
+  app.post("/api/users", requireAuth, requireRole('admin'), userManagementLimiter, async (req, res) => {
     try {
       const { username, password, role, email } = req.body;
       
@@ -151,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAuth, requireRole('admin'), async (req, res) => {
+  app.put("/api/users/:id", requireAuth, requireRole('admin'), userManagementLimiter, async (req, res) => {
     try {
       const { id } = req.params;
       const { username, password, role, email } = req.body;
@@ -176,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, requireRole('admin'), async (req, res) => {
+  app.delete("/api/users/:id", requireAuth, requireRole('admin'), userManagementLimiter, async (req, res) => {
     try {
       const { id } = req.params;
       const currentUser = req.user as AuthUser;
@@ -218,7 +254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/products", requireAuth, async (req, res) => {
+  app.post("/api/products", requireAuth, productModificationLimiter, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(productData);
@@ -228,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/products/:id", requireAuth, async (req, res) => {
+  app.put("/api/products/:id", requireAuth, productModificationLimiter, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = insertProductSchema.partial().parse(req.body);
@@ -242,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/products/:id", requireAuth, async (req, res) => {
+  app.delete("/api/products/:id", requireAuth, productModificationLimiter, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteProduct(id);
@@ -391,7 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transactions", requireAuth, async (req, res) => {
+  app.post("/api/transactions", requireAuth, transactionLimiter, async (req, res) => {
     try {
       const { transaction, items } = req.body;
       const transactionData = insertTransactionSchema.parse(transaction);
@@ -414,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/returns", requireAuth, async (req, res) => {
+  app.post("/api/returns", requireAuth, returnsLimiter, async (req, res) => {
     try {
       const { returnData, items } = req.body;
       const returnInfo = insertReturnSchema.parse(returnData);

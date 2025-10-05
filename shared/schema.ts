@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, json, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,7 +29,12 @@ export const products = pgTable("products", {
   isActive: boolean("is_active").notNull().default(true),
   expirationDate: timestamp("expiration_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  categoryIdx: index("products_category_idx").on(table.categoryId),
+  expirationIdx: index("products_expiration_idx").on(table.expirationDate),
+  activeIdx: index("products_active_idx").on(table.isActive),
+  skuIdx: index("products_sku_idx").on(table.sku),
+}));
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -38,7 +43,10 @@ export const customers = pgTable("customers", {
   email: text("email"),
   loyaltyPoints: integer("loyalty_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  phoneIdx: index("customers_phone_idx").on(table.phone),
+  emailIdx: index("customers_email_idx").on(table.email),
+}));
 
 export const shifts = pgTable("shifts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -48,7 +56,11 @@ export const shifts = pgTable("shifts", {
   startingCash: decimal("starting_cash", { precision: 10, scale: 2 }).notNull(),
   endingCash: decimal("ending_cash", { precision: 10, scale: 2 }),
   status: text("status").notNull().default("open"), // open, closed
-});
+}, (table) => ({
+  userIdx: index("shifts_user_idx").on(table.userId),
+  statusIdx: index("shifts_status_idx").on(table.status),
+  startTimeIdx: index("shifts_start_time_idx").on(table.startTime),
+}));
 
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -65,7 +77,14 @@ export const transactions = pgTable("transactions", {
   status: text("status").notNull().default("completed"), // completed, refunded, cancelled
   isOffline: boolean("is_offline").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  shiftIdx: index("transactions_shift_idx").on(table.shiftId),
+  customerIdx: index("transactions_customer_idx").on(table.customerId),
+  userIdx: index("transactions_user_idx").on(table.userId),
+  createdAtIdx: index("transactions_created_at_idx").on(table.createdAt),
+  receiptIdx: index("transactions_receipt_idx").on(table.receiptNumber),
+  statusIdx: index("transactions_status_idx").on(table.status),
+}));
 
 export const transactionItems = pgTable("transaction_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -74,7 +93,10 @@ export const transactionItems = pgTable("transaction_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-});
+}, (table) => ({
+  transactionIdx: index("transaction_items_transaction_idx").on(table.transactionId),
+  productIdx: index("transaction_items_product_idx").on(table.productId),
+}));
 
 export const returns = pgTable("returns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -84,7 +106,11 @@ export const returns = pgTable("returns", {
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }).notNull(),
   refundMethod: text("refund_method").notNull(), // cash, card
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  transactionIdx: index("returns_transaction_idx").on(table.originalTransactionId),
+  userIdx: index("returns_user_idx").on(table.userId),
+  createdAtIdx: index("returns_created_at_idx").on(table.createdAt),
+}));
 
 export const returnItems = pgTable("return_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -93,7 +119,10 @@ export const returnItems = pgTable("return_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-});
+}, (table) => ({
+  returnIdx: index("return_items_return_idx").on(table.returnId),
+  productIdx: index("return_items_product_idx").on(table.productId),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

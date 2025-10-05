@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSessionStore } from "@/hooks/use-session-store";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import POS from "@/pages/pos";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
@@ -58,14 +59,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

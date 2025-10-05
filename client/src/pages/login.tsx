@@ -46,20 +46,20 @@ export default function Login() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md" role="main" aria-labelledby="login-title">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4" aria-hidden="true">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <ShoppingCart className="w-8 h-8 text-primary-foreground" />
+              <ShoppingCart className="w-8 h-8 text-primary-foreground" aria-hidden="true" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">POS System</CardTitle>
+          <CardTitle id="login-title" className="text-2xl font-bold">POS System</CardTitle>
           <CardDescription>
             Введите ваши учетные данные для входа в систему
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" aria-label="Форма входа в систему">
             <div className="space-y-2">
               <Label htmlFor="username">Имя пользователя</Label>
               <Input
@@ -70,6 +70,8 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
+                aria-required="true"
+                aria-label="Введите имя пользователя"
                 data-testid="input-username"
               />
             </div>
@@ -83,6 +85,8 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
+                aria-required="true"
+                aria-label="Введите пароль"
                 data-testid="input-password"
               />
             </div>
@@ -90,6 +94,8 @@ export default function Login() {
               type="submit"
               className="w-full"
               disabled={isLoading}
+              aria-busy={isLoading}
+              aria-label={isLoading ? "Выполняется вход в систему" : "Войти в систему"}
               data-testid="button-login"
             >
               {isLoading ? "Вход..." : "Войти"}

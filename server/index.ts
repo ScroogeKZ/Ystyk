@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import { logError, extractErrorContext } from "./logger";
 import type { User } from "@shared/schema";
 
 if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
@@ -124,11 +125,21 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    log(`ERROR ${req.method} ${req.path}: ${message}`);
-    console.error(err);
+    const context = extractErrorContext(req, status);
+    logError(err, context);
 
     if (!res.headersSent) {
-      res.status(status).json({ message });
+      const responseMessage = process.env.NODE_ENV === "production" 
+        ? (status >= 500 ? "Внутренняя ошибка сервера" : message)
+        : message;
+      
+      res.status(status).json({ 
+        message: responseMessage,
+        ...(process.env.NODE_ENV === "development" && { 
+          error: err.name,
+          stack: err.stack 
+        })
+      });
     }
   });
 
