@@ -10,6 +10,7 @@ import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, insertGoodsAcceptanceSchema, insertInventoryAuditSchema, insertInventoryAuditItemSchema, insertWriteOffSchema, insertAuditLogSchema, insertCustomerTierSchema, type User } from "@shared/schema";
 import { z } from "zod";
+import { generateShiftReportExcel, generateShiftReportCSV } from "./excel-generator";
 
 // Type for authenticated user (without password)
 export type AuthUser = Omit<User, 'password'>;
@@ -398,6 +399,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Shift not found" });
       }
       res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Export shift report as Excel
+  app.get("/api/shifts/:id/export/excel", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const summary = await storage.getShiftSummary(id);
+      if (!summary) {
+        return res.status(404).json({ message: "Shift not found" });
+      }
+
+      const transactions = await storage.getTransactions(id);
+      const excelBuffer = generateShiftReportExcel(summary, transactions);
+
+      const filename = `shift_report_${summary.shift.id}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(excelBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Export shift report as CSV
+  app.get("/api/shifts/:id/export/csv", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const summary = await storage.getShiftSummary(id);
+      if (!summary) {
+        return res.status(404).json({ message: "Shift not found" });
+      }
+
+      const transactions = await storage.getTransactions(id);
+      const csvBuffer = generateShiftReportCSV(summary, transactions);
+
+      const filename = `shift_report_${summary.shift.id}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csvBuffer);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

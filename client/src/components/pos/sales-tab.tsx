@@ -7,15 +7,79 @@ import { Badge } from "@/components/ui/badge";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import ProductGrid from "@/components/pos/product-grid";
 import Cart from "@/components/pos/cart";
+import KeyboardShortcutsHelp from "@/components/pos/keyboard-shortcuts-help";
+import { useKeyboardShortcuts, POS_SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SalesTab() {
   const [cartOpen, setCartOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { cart } = usePOSStore();
+  const { cart, clearCart, openPaymentModal } = usePOSStore();
+  const { toast } = useToast();
+
+  // Calculate total
+  const total = cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+
+  // Keyboard shortcuts
+  const [showHelp, setShowHelp] = useState(false);
+
+  useKeyboardShortcuts([
+    {
+      key: POS_SHORTCUTS.HELP,
+      description: "Показать справку по горячим клавишам",
+      action: () => {
+        setShowHelp(true);
+      },
+    },
+    {
+      key: POS_SHORTCUTS.OPEN_PAYMENT,
+      description: "Инициировать оплату",
+      action: () => {
+        if (cart.length > 0) {
+          openPaymentModal('cash', total);
+        } else {
+          toast({
+            title: "Корзина пуста",
+            description: "Добавьте товары для оплаты",
+            variant: "destructive",
+          });
+        }
+      },
+      enabled: cart.length > 0,
+    },
+    {
+      key: POS_SHORTCUTS.CLEAR_CART,
+      description: "Очистить корзину",
+      action: () => {
+        if (cart.length > 0) {
+          clearCart();
+          toast({
+            title: "Корзина очищена",
+            description: "Все товары удалены из корзины",
+          });
+        }
+      },
+      enabled: cart.length > 0,
+    },
+    {
+      key: POS_SHORTCUTS.CANCEL,
+      description: "Отмена/закрыть модальное окно",
+      action: () => {
+        if (showHelp) {
+          setShowHelp(false);
+        } else if (cartOpen) {
+          setCartOpen(false);
+        }
+      },
+    },
+  ]);
 
   if (isMobile) {
     return (
       <div className="flex-1 flex flex-col relative" data-testid="sales-tab">
+        <div className="absolute top-4 right-4 z-30">
+          <KeyboardShortcutsHelp open={showHelp} onOpenChange={setShowHelp} />
+        </div>
         <ProductGrid />
         
         {/* Mobile Cart Button */}
@@ -41,7 +105,10 @@ export default function SalesTab() {
   }
 
   return (
-    <div className="flex-1 flex" data-testid="sales-tab">
+    <div className="flex-1 flex relative" data-testid="sales-tab">
+      <div className="absolute top-4 right-4 z-30">
+        <KeyboardShortcutsHelp open={showHelp} onOpenChange={setShowHelp} />
+      </div>
       <ProductGrid />
       <Cart />
     </div>

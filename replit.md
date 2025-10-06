@@ -21,6 +21,14 @@ This is a comprehensive Point of Sale system designed for retail operations. It 
   - Transaction/Return items: Foreign key relationships
 - **Shift Report Printing** (Oct 5): Implemented PDF generation for shift reports using jsPDF library with comprehensive financial summaries
 - **Accessibility Improvements** (Oct 5): Added ARIA labels and attributes to login page and key interactive elements
+- **Excel/CSV Export** (Oct 5): Added Excel and CSV export functionality for shift reports using xlsx library
+- **Keyboard Shortcuts System** (Oct 5): Implemented comprehensive keyboard shortcuts for faster cashier operations:
+  - F1: Show keyboard shortcuts help dialog
+  - F5: Initiate payment
+  - F6: Clear cart
+  - Escape: Cancel/close modal windows
+  - Additional shortcuts for barcode scanner, customer management, quantity adjustments, and shift operations
+- **Low Stock Alerts** (Oct 5): Created automated alert component that monitors inventory levels and displays warnings for items below configurable threshold (default: 5 units)
 
 ## User Preferences
 - Full-stack TypeScript development preferred

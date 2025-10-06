@@ -22,6 +22,7 @@ import UsersManagement from "@/pages/users-management";
 import PaymentModal from "@/components/pos/payment-modal";
 import EnhancedReceiptModal from "@/components/pos/enhanced-receipt-modal";
 import ExpirationAlert from "@/components/pos/expiration-alert";
+import LowStockAlert from "@/components/pos/low-stock-alert";
 import { usePOSStore } from "@/hooks/use-pos-store";
 import { useSyncCurrentShift } from "@/hooks/use-sync-current-shift";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +118,7 @@ export default function POS() {
       {paymentModal.isOpen && <PaymentModal />}
       {receiptModal.isOpen && <EnhancedReceiptModal />}
       <ExpirationAlert />
+      <LowStockAlert threshold={5} />
     </div>
   );
 }

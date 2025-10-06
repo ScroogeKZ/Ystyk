@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Printer, Plus, Minus, CreditCard, Banknote, RotateCcw } from "lucide-react";
+import { Lock, Printer, Plus, Minus, CreditCard, Banknote, RotateCcw, FileSpreadsheet, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -121,6 +121,88 @@ export default function ShiftTab() {
 
   const onCloseSubmit = (data: any) => {
     closeShiftMutation.mutate(data);
+  };
+
+  const handleExportExcel = async () => {
+    if (!currentShift) {
+      toast({
+        title: "Ошибка",
+        description: "Нет активной смены",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/shifts/${currentShift.id}/export/excel`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) throw new Error('Failed to export');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shift_report_${new Date(currentShift.startTime).toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Успех",
+        description: "Отчет экспортирован в Excel",
+      });
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось экспортировать отчет",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportCSV = async () => {
+    if (!currentShift) {
+      toast({
+        title: "Ошибка",
+        description: "Нет активной смены",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/shifts/${currentShift.id}/export/csv`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) throw new Error('Failed to export');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shift_report_${new Date(currentShift.startTime).toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Успех",
+        description: "Отчет экспортирован в CSV",
+      });
+    } catch (error) {
+      console.error("Error exporting to CSV:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось экспортировать отчет",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePrintReport = () => {
@@ -263,10 +345,20 @@ export default function ShiftTab() {
           <h1 className="text-3xl font-bold text-foreground">Управление сменой</h1>
           <div className="flex gap-3">
             {currentShift && (
-              <Button onClick={handlePrintReport} data-testid="print-shift-report">
-                <Printer className="w-4 h-4 mr-2" />
-                Отчет
-              </Button>
+              <>
+                <Button onClick={handlePrintReport} data-testid="print-shift-report">
+                  <Printer className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+                <Button onClick={handleExportExcel} variant="outline" data-testid="export-excel">
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
+                <Button onClick={handleExportCSV} variant="outline" data-testid="export-csv">
+                  <FileText className="w-4 h-4 mr-2" />
+                  CSV
+                </Button>
+              </>
             )}
             
             {currentShift ? (
