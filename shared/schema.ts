@@ -47,6 +47,22 @@ export const customerTiers = pgTable("customer_tiers", {
   benefits: text("benefits"), // Description of benefits
 });
 
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  contactPerson: text("contact_person"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  taxId: text("tax_id"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: index("suppliers_name_idx").on(table.name),
+  activeIdx: index("suppliers_active_idx").on(table.isActive),
+}));
+
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -141,6 +157,7 @@ export const returnItems = pgTable("return_items", {
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, createdAt: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertShiftSchema = createInsertSchema(shifts).omit({ id: true, startTime: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, createdAt: true });
@@ -155,6 +172,8 @@ export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Shift = typeof shifts.$inferSelect;

@@ -3,6 +3,7 @@ import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { LanguageProvider } from "@/i18n/LanguageContext";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSessionStore } from "@/hooks/use-session-store";
@@ -61,12 +62,14 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </LanguageProvider>
+        <ThemeProvider defaultTheme="light">
+          <LanguageProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

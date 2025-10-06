@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { ThemeToggleSimple } from "@/components/theme-toggle";
 import FiscalStatus from "@/components/pos/fiscal-status";
 import { useSessionStore } from "@/hooks/use-session-store";
 import { useLocation } from "wouter";
@@ -143,9 +144,12 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <FiscalStatus />
       </div>
       
-      {/* Language Switcher */}
+      {/* Settings */}
       <div className="p-4 border-t border-sidebar-border">
-        <LanguageSwitcher />
+        <div className="flex items-center justify-between gap-2">
+          <LanguageSwitcher />
+          <ThemeToggleSimple />
+        </div>
       </div>
       
       {/* User Info */}

@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, type GoodsAcceptance, type InsertGoodsAcceptance, type InventoryAudit, type InsertInventoryAudit, type InventoryAuditItem, type InsertInventoryAuditItem, type WriteOff, type InsertWriteOff, type AuditLog, type InsertAuditLog, type CustomerTier, type InsertCustomerTier, users, products, categories, customers, shifts, transactions, transactionItems, returns, returnItems, goodsAcceptance, inventoryAudits, inventoryAuditItems, writeOffs, auditLogs, customerTiers } from "@shared/schema";
+import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Supplier, type InsertSupplier, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, type GoodsAcceptance, type InsertGoodsAcceptance, type InventoryAudit, type InsertInventoryAudit, type InventoryAuditItem, type InsertInventoryAuditItem, type WriteOff, type InsertWriteOff, type AuditLog, type InsertAuditLog, type CustomerTier, type InsertCustomerTier, users, products, categories, customers, suppliers, shifts, transactions, transactionItems, returns, returnItems, goodsAcceptance, inventoryAudits, inventoryAuditItems, writeOffs, auditLogs, customerTiers } from "@shared/schema";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import ws from "ws";
@@ -44,6 +44,7 @@ export interface IStorage {
 
   // Transactions
   getTransactions(shiftId?: string): Promise<TransactionWithItems[]>;
+  getTransactionsByDateRange(startDate: string, endDate: string): Promise<TransactionWithItems[]>;
   getTransaction(id: string): Promise<TransactionWithItems | undefined>;
   getTransactionByReceiptNumber(receiptNumber: string): Promise<TransactionWithItems | undefined>;
   createTransaction(transaction: InsertTransaction, items: InsertTransactionItem[]): Promise<TransactionWithItems>;
@@ -56,6 +57,10 @@ export interface IStorage {
   // Analytics
   getDailySales(date: Date): Promise<{ revenue: number; transactions: number; averageCheck: number }>;
   getTopProducts(limit: number): Promise<Array<{ product: Product; sold: number }>>;
+  getABCAnalysis(): Promise<Array<{ product: Product; revenue: number; category: 'A' | 'B' | 'C'; percentage: number }>>;
+  getProfitabilityAnalysis(): Promise<Array<{ product: Product; revenue: number; margin: number; profit: number }>>;
+  getSalesForecast(days: number): Promise<Array<{ date: string; predicted: number; confidence: number }>>;
+  getActiveSessionsCount(): Promise<number>;
   
   // Goods Acceptance
   getGoodsAcceptance(): Promise<any[]>;
@@ -82,6 +87,13 @@ export interface IStorage {
   getCustomerTiers(): Promise<any[]>;
   createCustomerTier(tier: any): Promise<any>;
   updateCustomerTier(id: string, tier: Partial<any>): Promise<any | undefined>;
+  
+  // Suppliers
+  getSuppliers(): Promise<Supplier[]>;
+  getSupplier(id: string): Promise<Supplier | undefined>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: string, supplier: Partial<Supplier>): Promise<Supplier | undefined>;
+  deleteSupplier(id: string): Promise<boolean>;
 }
 
 const db = drizzle({
@@ -369,6 +381,47 @@ export class PostgresStorage implements IStorage {
     return result;
   }
 
+  async getTransactionsByDateRange(startDate: string, endDate: string): Promise<TransactionWithItems[]> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const txns = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          gte(transactions.createdAt, start),
+          lte(transactions.createdAt, end)
+        )
+      )
+      .orderBy(desc(transactions.createdAt));
+    
+    const result: TransactionWithItems[] = [];
+    for (const txn of txns) {
+      const items = await db
+        .select()
+        .from(transactionItems)
+        .leftJoin(products, eq(transactionItems.productId, products.id))
+        .where(eq(transactionItems.transactionId, txn.id));
+      
+      const customer = txn.customerId 
+        ? await this.getCustomer(txn.customerId)
+        : undefined;
+      
+      result.push({
+        ...txn,
+        items: items.map(item => ({
+          ...item.transaction_items,
+          product: item.products!
+        })),
+        customer
+      });
+    }
+    
+    return result;
+  }
+
   async getTransaction(id: string): Promise<TransactionWithItems | undefined> {
     const txn = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
     if (!txn[0]) return undefined;
@@ -552,6 +605,128 @@ export class PostgresStorage implements IStorage {
     return topProducts;
   }
 
+  async getABCAnalysis(): Promise<Array<{ product: Product; revenue: number; category: 'A' | 'B' | 'C'; percentage: number }>> {
+    const result = await db
+      .select({
+        productId: transactionItems.productId,
+        revenue: sql<number>`CAST(SUM(${transactionItems.totalPrice}) AS DECIMAL)`
+      })
+      .from(transactionItems)
+      .groupBy(transactionItems.productId)
+      .orderBy(desc(sql`SUM(${transactionItems.totalPrice})`));
+
+    const totalRevenue = result.reduce((sum, item) => sum + parseFloat(item.revenue.toString()), 0);
+    let cumulativePercentage = 0;
+
+    const analysis = await Promise.all(
+      result.map(async (item) => {
+        const revenue = parseFloat(item.revenue.toString());
+        const percentage = (revenue / totalRevenue) * 100;
+        cumulativePercentage += percentage;
+        
+        let category: 'A' | 'B' | 'C';
+        if (cumulativePercentage <= 80) {
+          category = 'A';
+        } else if (cumulativePercentage <= 95) {
+          category = 'B';
+        } else {
+          category = 'C';
+        }
+
+        return {
+          product: (await this.getProduct(item.productId))!,
+          revenue,
+          category,
+          percentage
+        };
+      })
+    );
+
+    return analysis;
+  }
+
+  async getProfitabilityAnalysis(): Promise<Array<{ product: Product; revenue: number; margin: number; profit: number }>> {
+    const result = await db
+      .select({
+        productId: transactionItems.productId,
+        revenue: sql<number>`CAST(SUM(${transactionItems.totalPrice}) AS DECIMAL)`,
+        cost: sql<number>`CAST(SUM(${transactionItems.quantity} * ${products.price} * 0.6) AS DECIMAL)`
+      })
+      .from(transactionItems)
+      .leftJoin(products, eq(transactionItems.productId, products.id))
+      .groupBy(transactionItems.productId)
+      .orderBy(desc(sql`SUM(${transactionItems.totalPrice})`));
+
+    const analysis = await Promise.all(
+      result.map(async (item) => {
+        const revenue = parseFloat(item.revenue.toString());
+        const cost = parseFloat(item.cost?.toString() || '0');
+        const profit = revenue - cost;
+        const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+        return {
+          product: (await this.getProduct(item.productId))!,
+          revenue,
+          margin,
+          profit
+        };
+      })
+    );
+
+    return analysis;
+  }
+
+  async getSalesForecast(days: number): Promise<Array<{ date: string; predicted: number; confidence: number }>> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const historicalSales = await db
+      .select({
+        date: sql<string>`DATE(${transactions.createdAt})`,
+        total: sql<number>`CAST(SUM(${transactions.total}) AS DECIMAL)`
+      })
+      .from(transactions)
+      .where(
+        and(
+          gte(transactions.createdAt, startDate),
+          lte(transactions.createdAt, endDate)
+        )
+      )
+      .groupBy(sql`DATE(${transactions.createdAt})`)
+      .orderBy(sql`DATE(${transactions.createdAt})`);
+
+    const dailyAvg = historicalSales.reduce((sum, day) => sum + parseFloat(day.total.toString()), 0) / historicalSales.length;
+    const forecast: Array<{ date: string; predicted: number; confidence: number }> = [];
+
+    for (let i = 1; i <= days; i++) {
+      const forecastDate = new Date();
+      forecastDate.setDate(forecastDate.getDate() + i);
+      
+      const dayOfWeek = forecastDate.getDay();
+      const weekendMultiplier = (dayOfWeek === 0 || dayOfWeek === 6) ? 1.2 : 1.0;
+      const predicted = dailyAvg * weekendMultiplier;
+      const confidence = Math.max(0.6, 1 - (i * 0.02));
+
+      forecast.push({
+        date: forecastDate.toISOString().split('T')[0],
+        predicted: Math.round(predicted),
+        confidence: Math.round(confidence * 100) / 100
+      });
+    }
+
+    return forecast;
+  }
+
+  async getActiveSessionsCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(shifts)
+      .where(eq(shifts.status, 'open'));
+    
+    return result[0]?.count || 0;
+  }
+
   // Goods Acceptance
   async getGoodsAcceptance(): Promise<GoodsAcceptance[]> {
     return db.select().from(goodsAcceptance).orderBy(desc(goodsAcceptance.createdAt));
@@ -687,6 +862,30 @@ export class PostgresStorage implements IStorage {
   async updateCustomerTier(id: string, tier: Partial<CustomerTier>): Promise<CustomerTier | undefined> {
     const [result] = await db.update(customerTiers).set(tier).where(eq(customerTiers.id, id)).returning();
     return result;
+  }
+
+  async getSuppliers(): Promise<Supplier[]> {
+    return db.select().from(suppliers).orderBy(suppliers.name);
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    const [result] = await db.select().from(suppliers).where(eq(suppliers.id, id)).limit(1);
+    return result;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [result] = await db.insert(suppliers).values(supplier).returning();
+    return result;
+  }
+
+  async updateSupplier(id: string, supplier: Partial<Supplier>): Promise<Supplier | undefined> {
+    const [result] = await db.update(suppliers).set(supplier).where(eq(suppliers.id, id)).returning();
+    return result;
+  }
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    const result = await db.delete(suppliers).where(eq(suppliers.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

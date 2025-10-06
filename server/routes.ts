@@ -8,9 +8,9 @@ import path from "path";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
-import { insertProductSchema, insertCustomerSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, insertGoodsAcceptanceSchema, insertInventoryAuditSchema, insertInventoryAuditItemSchema, insertWriteOffSchema, insertAuditLogSchema, insertCustomerTierSchema, type User } from "@shared/schema";
+import { insertProductSchema, insertCustomerSchema, insertSupplierSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, insertGoodsAcceptanceSchema, insertInventoryAuditSchema, insertInventoryAuditItemSchema, insertWriteOffSchema, insertAuditLogSchema, insertCustomerTierSchema, type User } from "@shared/schema";
 import { z } from "zod";
-import { generateShiftReportExcel, generateShiftReportCSV } from "./excel-generator";
+import { generateShiftReportExcel, generateShiftReportCSV, generateProductsExcel, generateCustomersExcel, generateSalesReportExcel, generateInventoryReportExcel } from "./excel-generator";
 
 // Type for authenticated user (without password)
 export type AuthUser = Omit<User, 'password'>;
@@ -448,6 +448,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/products/export/excel", requireAuth, async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      const excelBuffer = generateProductsExcel(products);
+      
+      const filename = `products_${new Date().toISOString().split('T')[0]}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(excelBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/customers/export/excel", requireAuth, async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      const excelBuffer = generateCustomersExcel(customers);
+      
+      const filename = `customers_${new Date().toISOString().split('T')[0]}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(excelBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/reports/sales/export/excel", requireAuth, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "startDate и endDate обязательны" });
+      }
+      
+      const transactions = await storage.getTransactionsByDateRange(startDate as string, endDate as string);
+      const excelBuffer = generateSalesReportExcel(transactions, startDate as string, endDate as string);
+      
+      const filename = `sales_report_${startDate}_${endDate}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(excelBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/reports/inventory/export/excel", requireAuth, async (req, res) => {
+    try {
+      const products = await storage.getProducts();
+      const excelBuffer = generateInventoryReportExcel(products);
+      
+      const filename = `inventory_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(excelBuffer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Transactions
   app.get("/api/transactions", requireAuth, async (req, res) => {
     try {
@@ -525,6 +586,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { limit = 10 } = req.query;
       const topProducts = await storage.getTopProducts(parseInt(limit as string));
       res.json(topProducts);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/abc-analysis", requireAuth, async (req, res) => {
+    try {
+      const analysis = await storage.getABCAnalysis();
+      res.json(analysis);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/profitability", requireAuth, async (req, res) => {
+    try {
+      const analysis = await storage.getProfitabilityAnalysis();
+      res.json(analysis);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/forecast", requireAuth, async (req, res) => {
+    try {
+      const { days = 7 } = req.query;
+      const forecast = await storage.getSalesForecast(parseInt(days as string));
+      res.json(forecast);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/system/metrics", requireAuth, async (req, res) => {
+    try {
+      const memUsage = process.memoryUsage();
+      const uptime = process.uptime();
+      
+      const metrics = {
+        uptime: Math.floor(uptime),
+        uptimeFormatted: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+        memory: {
+          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+          rss: Math.round(memUsage.rss / 1024 / 1024)
+        },
+        activeUsers: await storage.getActiveSessionsCount(),
+        timestamp: new Date().toISOString()
+      };
+      
+      res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -708,6 +820,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Suppliers
+  app.get("/api/suppliers", requireAuth, async (req, res) => {
+    try {
+      const suppliers = await storage.getSuppliers();
+      res.json(suppliers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/suppliers/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supplier = await storage.getSupplier(id);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/suppliers", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const supplier = insertSupplierSchema.parse(req.body);
+      const result = await storage.createSupplier(supplier);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/suppliers/:id", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = insertSupplierSchema.partial().parse(req.body);
+      const result = await storage.updateSupplier(id, updates);
+      if (!result) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSupplier(id);
+      if (!success) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json({ message: "Supplier deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
