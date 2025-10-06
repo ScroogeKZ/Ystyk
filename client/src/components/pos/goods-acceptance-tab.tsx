@@ -7,36 +7,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, Package, CheckCircle, AlertTriangle, Truck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useFormatters } from "@/i18n/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useSessionStore } from "@/hooks/use-session-store";
+import { apiRequest } from "@/lib/queryClient";
+import { insertGoodsAcceptanceSchema } from "@shared/schema";
+import type { ProductWithCategory, GoodsAcceptance } from "@shared/schema";
 import { z } from "zod";
-import type { ProductWithCategory } from "@shared/schema";
 
-const acceptanceSchema = z.object({
-  productId: z.string().min(1, "Product is required"),
-  expectedQuantity: z.number().min(1, "Expected quantity must be positive"),
-  actualQuantity: z.number().min(0, "Actual quantity cannot be negative"),
-  supplierInvoice: z.string().optional(),
-  notes: z.string().optional(),
-});
+const acceptanceFormSchema = insertGoodsAcceptanceSchema.extend({
+  productId: z.string().min(1, "Выберите товар"),
+  expectedQuantity: z.number().min(1, "Ожидаемое количество должно быть положительным"),
+  actualQuantity: z.number().min(0, "Фактическое количество не может быть отрицательным"),
+}).omit({ acceptedBy: true, discrepancy: true });
 
-interface AcceptanceRecord {
-  id: string;
-  productId: string;
+type AcceptanceRecord = GoodsAcceptance & {
   product: ProductWithCategory;
-  expectedQuantity: number;
-  actualQuantity: number;
-  discrepancy: number;
-  status: 'pending' | 'accepted' | 'partial' | 'rejected';
-  supplierInvoice?: string;
-  notes?: string;
-  createdAt: Date;
-  acceptedBy: string;
-}
+};
 
 export default function GoodsAcceptanceTab() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -45,126 +38,145 @@ export default function GoodsAcceptanceTab() {
   const { formatCurrency, formatDate } = useFormatters();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const userId = useSessionStore((state) => state.userId);
 
-  const form = useForm<z.infer<typeof acceptanceSchema>>({
-    resolver: zodResolver(acceptanceSchema),
+  const form = useForm<z.infer<typeof acceptanceFormSchema>>({
+    resolver: zodResolver(acceptanceFormSchema),
     defaultValues: {
+      productId: "",
       expectedQuantity: 1,
       actualQuantity: 1,
+      status: "pending",
+      supplierInvoice: "",
+      notes: "",
     },
   });
 
-  // Mock data - would be from API in production
-  const acceptanceRecords: AcceptanceRecord[] = [
-    {
-      id: '1',
-      productId: 'prod-1',
-      product: {
-        id: 'prod-1',
-        name: 'Казахстанский чай',
-        price: '500.00',
-        sku: 'TEA-KZ-001',
-        stock: 50,
-        description: null,
-        categoryId: 'cat-1',
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date('2024-01-01'),
-        category: { id: 'cat-1', name: 'Напитки', description: null }
-      },
-      expectedQuantity: 100,
-      actualQuantity: 95,
-      discrepancy: -5,
-      status: 'accepted',
-      supplierInvoice: 'INV-2024-001',
-      notes: 'Упаковка слегка повреждена',
-      createdAt: new Date('2024-01-15'),
-      acceptedBy: 'Анна Петрова'
-    },
-    {
-      id: '2',
-      productId: 'prod-2',
-      product: {
-        id: 'prod-2',
-        name: 'Баурсаки',
-        price: '300.00',
-        sku: 'PASTRY-001',
-        stock: 25,
-        description: null,
-        categoryId: 'cat-2',
-        imageUrl: null,
-        isActive: true,
-        createdAt: new Date('2024-01-02'),
-        category: { id: 'cat-2', name: 'Выпечка', description: null }
-      },
-      expectedQuantity: 50,
-      actualQuantity: 50,
-      discrepancy: 0,
-      status: 'accepted',
-      supplierInvoice: 'INV-2024-002',
-      createdAt: new Date('2024-01-16'),
-      acceptedBy: 'Анна Петрова'
-    }
-  ];
+  const { data: acceptanceRecords = [], isLoading } = useQuery<AcceptanceRecord[]>({
+    queryKey: ["/api/goods-acceptance"],
+  });
 
   const { data: products = [] } = useQuery<ProductWithCategory[]>({
     queryKey: ["/api/products"],
   });
 
   const addAcceptanceMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof acceptanceSchema>) => {
-      // Mock API call - would be real in production
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return data;
+    mutationFn: async (data: z.infer<typeof acceptanceFormSchema>) => {
+      const discrepancy = data.actualQuantity - data.expectedQuantity;
+      let status = "accepted";
+      if (discrepancy < 0) {
+        status = "partial";
+      }
+      
+      const acceptanceData = {
+        ...data,
+        acceptedBy: userId,
+        discrepancy,
+        status,
+      };
+      
+      const response = await apiRequest("POST", "/api/goods-acceptance", acceptanceData);
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/acceptances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goods-acceptance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setIsAddDialogOpen(false);
       form.reset();
       toast({
         title: t.common.success,
-        description: "Приемка товара добавлена",
+        description: "Приемка товара успешно добавлена",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось добавить приемку",
+        variant: "destructive",
       });
     },
   });
 
-  const filteredRecords = acceptanceRecords.filter(record =>
-    record.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const response = await apiRequest("PUT", `/api/goods-acceptance/${id}/status`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/goods-acceptance"] });
+      toast({
+        title: t.common.success,
+        description: "Статус приемки обновлен",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось обновить статус",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const getStatusBadge = (status: AcceptanceRecord['status'], discrepancy: number) => {
+  const filteredRecords = acceptanceRecords.filter((record) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      record.product?.name?.toLowerCase().includes(searchLower) ||
+      record.product?.sku?.toLowerCase().includes(searchLower) ||
+      record.supplierInvoice?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const getStatusBadge = (status: string, discrepancy: number) => {
     switch (status) {
-      case 'accepted':
+      case "accepted":
         return (
-          <Badge className="bg-green-100 text-green-800">
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" data-testid={`badge-status-accepted`}>
             <CheckCircle className="w-3 h-3 mr-1" />
             Принято
           </Badge>
         );
-      case 'partial':
+      case "partial":
         return (
-          <Badge variant="secondary">
+          <Badge variant="secondary" data-testid={`badge-status-partial`}>
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Частично ({discrepancy > 0 ? '+' : ''}{discrepancy})
+            Частично ({discrepancy > 0 ? "+" : ""}
+            {discrepancy})
           </Badge>
         );
-      case 'rejected':
-        return <Badge variant="destructive">Отклонено</Badge>;
+      case "rejected":
+        return (
+          <Badge variant="destructive" data-testid={`badge-status-rejected`}>
+            Отклонено
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">В ожидании</Badge>;
+        return (
+          <Badge variant="outline" data-testid={`badge-status-pending`}>
+            В ожидании
+          </Badge>
+        );
     }
   };
 
+  // Calculate summary stats
+  const todayAccepted = acceptanceRecords.filter(
+    (r) => new Date(r.createdAt).toDateString() === new Date().toDateString()
+  ).length;
+
+  const discrepancies = acceptanceRecords.filter(
+    (r) => r.discrepancy !== 0 && r.status !== "rejected"
+  ).length;
+
   return (
-    <div className="flex-1 p-6">
+    <div className="flex-1 p-6" data-testid="goods-acceptance-tab">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-foreground">Приемка товаров</h1>
           <div className="flex gap-3">
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button data-testid="button-add-acceptance">
                   <Plus className="w-4 h-4 mr-2" />
                   Новая приемка
                 </Button>
@@ -174,23 +186,30 @@ export default function GoodsAcceptanceTab() {
                   <DialogTitle>Приемка товара</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit((data) => addAcceptanceMutation.mutate(data))} className="space-y-4">
+                  <form
+                    onSubmit={form.handleSubmit((data) => addAcceptanceMutation.mutate(data))}
+                    className="space-y-4"
+                  >
                     <FormField
                       control={form.control}
                       name="productId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Товар</FormLabel>
-                          <FormControl>
-                            <select {...field} className="w-full p-2 border rounded">
-                              <option value="">Выберите товар</option>
-                              {products.map(product => (
-                                <option key={product.id} value={product.id}>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-product">
+                                <SelectValue placeholder="Выберите товар" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {products.map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
                                   {product.name} ({product.sku})
-                                </option>
+                                </SelectItem>
                               ))}
-                            </select>
-                          </FormControl>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -202,7 +221,12 @@ export default function GoodsAcceptanceTab() {
                         <FormItem>
                           <FormLabel>Ожидаемое количество</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} />
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              data-testid="input-expected-quantity"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -215,7 +239,12 @@ export default function GoodsAcceptanceTab() {
                         <FormItem>
                           <FormLabel>Фактическое количество</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} />
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              data-testid="input-actual-quantity"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -228,17 +257,41 @@ export default function GoodsAcceptanceTab() {
                         <FormItem>
                           <FormLabel>Номер накладной</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} value={field.value || ""} data-testid="input-invoice-number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Примечания</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} value={field.value || ""} data-testid="textarea-notes" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     <div className="flex gap-2 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="flex-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddDialogOpen(false)}
+                        className="flex-1"
+                        data-testid="button-cancel"
+                      >
                         {t.common.cancel}
                       </Button>
-                      <Button type="submit" disabled={addAcceptanceMutation.isPending} className="flex-1">
+                      <Button
+                        type="submit"
+                        disabled={addAcceptanceMutation.isPending}
+                        className="flex-1"
+                        data-testid="button-submit"
+                      >
                         {addAcceptanceMutation.isPending ? "Добавление..." : "Добавить"}
                       </Button>
                     </div>
@@ -257,18 +310,22 @@ export default function GoodsAcceptanceTab() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">+3 от вчера</p>
+              <div className="text-2xl font-bold" data-testid="text-today-accepted">
+                {todayAccepted}
+              </div>
+              <p className="text-xs text-muted-foreground">приемок</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Общая стоимость</CardTitle>
+              <CardTitle className="text-sm font-medium">Всего записей</CardTitle>
               <Truck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(125000)}</div>
-              <p className="text-xs text-muted-foreground">За текущий месяц</p>
+              <div className="text-2xl font-bold" data-testid="text-total-records">
+                {acceptanceRecords.length}
+              </div>
+              <p className="text-xs text-muted-foreground">За все время</p>
             </CardContent>
           </Card>
           <Card>
@@ -277,18 +334,22 @@ export default function GoodsAcceptanceTab() {
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold" data-testid="text-discrepancies">
+                {discrepancies}
+              </div>
               <p className="text-xs text-muted-foreground">Требуют внимания</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Поставщики</CardTitle>
+              <CardTitle className="text-sm font-medium">Товаров</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground">Активных поставщиков</p>
+              <div className="text-2xl font-bold" data-testid="text-products-count">
+                {products.length}
+              </div>
+              <p className="text-xs text-muted-foreground">В каталоге</p>
             </CardContent>
           </Card>
         </div>
@@ -296,10 +357,11 @@ export default function GoodsAcceptanceTab() {
         {/* Search */}
         <div className="mb-6">
           <Input
-            placeholder="Поиск по товарам или SKU..."
+            placeholder="Поиск по товарам, SKU или номеру накладной..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
+            data-testid="input-search"
           />
         </div>
 
@@ -309,42 +371,73 @@ export default function GoodsAcceptanceTab() {
             <CardTitle>История приемки</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Товар</TableHead>
-                  <TableHead>Ожидалось</TableHead>
-                  <TableHead>Получено</TableHead>
-                  <TableHead>Расхождение</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Дата</TableHead>
-                  <TableHead>Принял</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecords.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-card-foreground">{record.product.name}</p>
-                        <p className="text-sm text-muted-foreground">{record.product.sku}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{record.expectedQuantity}</TableCell>
-                    <TableCell>{record.actualQuantity}</TableCell>
-                    <TableCell>
-                      <span className={`font-medium ${record.discrepancy === 0 ? 'text-green-600' : 
-                        record.discrepancy > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                        {record.discrepancy > 0 ? '+' : ''}{record.discrepancy}
-                      </span>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(record.status, record.discrepancy)}</TableCell>
-                    <TableCell>{formatDate(record.createdAt)}</TableCell>
-                    <TableCell className="text-muted-foreground">{record.acceptedBy}</TableCell>
+            {isLoading ? (
+              <div className="text-center py-8">Загрузка...</div>
+            ) : filteredRecords.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchTerm ? "Записи не найдены" : "Пока нет записей приемки"}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Товар</TableHead>
+                    <TableHead>Ожидалось</TableHead>
+                    <TableHead>Получено</TableHead>
+                    <TableHead>Расхождение</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead>Накладная</TableHead>
+                    <TableHead>Дата</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.map((record) => (
+                    <TableRow key={record.id} data-testid={`row-acceptance-${record.id}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-card-foreground">
+                            {record.product?.name || "Неизвестный товар"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {record.product?.sku || "N/A"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`text-expected-${record.id}`}>
+                        {record.expectedQuantity}
+                      </TableCell>
+                      <TableCell data-testid={`text-actual-${record.id}`}>
+                        {record.actualQuantity}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`font-medium ${
+                            record.discrepancy === 0
+                              ? "text-green-600 dark:text-green-400"
+                              : record.discrepancy > 0
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-red-600 dark:text-red-400"
+                          }`}
+                          data-testid={`text-discrepancy-${record.id}`}
+                        >
+                          {record.discrepancy > 0 ? "+" : ""}
+                          {record.discrepancy}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(record.status, record.discrepancy)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {record.supplierInvoice || "—"}
+                      </TableCell>
+                      <TableCell data-testid={`text-date-${record.id}`}>
+                        {formatDate(new Date(record.createdAt))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
