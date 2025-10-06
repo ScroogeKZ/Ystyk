@@ -4,6 +4,11 @@
 This is a comprehensive Point of Sale system designed for retail operations. It features a modern interface for managing sales, inventory, customer relationships, returns, and analytics. The system aims to provide a robust and user-friendly solution for businesses to streamline their retail processes.
 
 ## Recent Changes (October 2025)
+- **Security & Logging Enhancements** (Oct 6): 
+  - Added SESSION_SECRET environment variable for secure session management
+  - Implemented CORS configuration with origin whitelisting for production
+  - Integrated Winston for structured logging with JSON formatting and sanitization
+  - Updated dependency security analysis (xlsx and esbuild vulnerabilities noted for monitoring)
 - **Product Expiration Tracking** (Oct 4): Added expiration date field to products with automatic notifications for expiring and expired items
 - **Expiration Alerts** (Oct 4): Implemented visual alerts that display products expiring within 7 days and already expired products
 - **Enhanced Product Forms** (Oct 4): Updated product creation/editing forms to support optional expiration dates
@@ -53,6 +58,8 @@ This is a comprehensive Point of Sale system designed for retail operations. It 
     - Authentication: Passport.js with LocalStrategy and express-session, using bcrypt for password hashing and `connect-pg-simple` for PostgreSQL-backed sessions.
     - API: RESTful architecture with all endpoints protected by `requireAuth` middleware and validated by Zod schemas.
     - Data Integrity: Critical operations are wrapped in database transactions to ensure atomicity and consistency.
+    - Logging: Winston for structured JSON logging with error context and sensitive data sanitization.
+    - Security: CORS configuration with origin whitelisting, SESSION_SECRET for production.
 
 ### Feature Specifications
 - **Sales Management**: Full transaction processing, including receipt generation and support for barcode scanning.
@@ -83,8 +90,9 @@ This is a comprehensive Point of Sale system designed for retail operations. It 
 ## External Dependencies
 - **Database**: PostgreSQL
 - **Frontend Libraries**: React, Vite, shadcn/ui, Radix UI, TailwindCSS, Zustand, TanStack Query, Wouter.
-- **Backend Libraries**: Express.js, Drizzle ORM, Passport.js, bcrypt, express-session, connect-pg-simple, Zod, express-rate-limit.
+- **Backend Libraries**: Express.js, Drizzle ORM, Passport.js, bcrypt, express-session, connect-pg-simple, Zod, express-rate-limit, cors, winston.
 - **PDF Generation**: jsPDF for shift report printing.
+- **Email Integration**: Resend integration available but not configured (user declined setup). For email functionality, manual setup with SMTP credentials required.
 
 ## Replit Setup (October 4, 2025 - Fresh Import)
 - **Project Import**: Imported from GitHub and configured for Replit environment

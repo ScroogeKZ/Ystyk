@@ -1,5 +1,6 @@
 import { type Request } from "express";
 import { log } from "./vite";
+import winston from "winston";
 
 export interface ErrorLogContext {
   method: string;
@@ -15,6 +16,32 @@ export interface ErrorLogContext {
   body?: any;
 }
 
+// Winston logger configuration
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'pos-system' },
+  transports: [
+    // Write all logs to console in development
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(({ level, message, timestamp, ...meta }) => {
+          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+          return `${timestamp} [${level}]: ${message} ${metaStr}`;
+        })
+      ),
+    }),
+  ],
+});
+
+// Export logger for use in other modules
+export { logger };
+
 export function logError(error: Error, context: ErrorLogContext) {
   const isDev = process.env.NODE_ENV === "development";
   
@@ -22,6 +49,32 @@ export function logError(error: Error, context: ErrorLogContext) {
   const userContext = context.userId ? ` [User: ${context.username || context.userId}]` : "";
   
   log(`${errorSummary}${userContext}`, "express");
+
+  // Winston structured logging
+  logger.error('Request error', {
+    error: {
+      name: error.name,
+      message: error.message,
+      stack: isDev ? error.stack : undefined,
+    },
+    request: {
+      method: context.method,
+      path: context.path,
+      statusCode: context.statusCode,
+    },
+    user: context.userId ? {
+      id: context.userId,
+      username: context.username,
+      role: context.userRole,
+    } : undefined,
+    client: isDev ? {
+      ip: context.ip,
+      userAgent: context.userAgent,
+    } : undefined,
+    params: isDev ? context.params : undefined,
+    query: isDev ? context.query : undefined,
+    body: isDev && context.body ? deepSanitize(context.body) : undefined,
+  });
 
   if (isDev) {
     console.error("\n--- Detailed Error Context ---");
