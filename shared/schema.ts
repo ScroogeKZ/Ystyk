@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().default("cashier"), // cashier, manager
   email: text("email"),
+  twoFactorSecret: text("two_factor_secret"),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
 });
 
 export const categories = pgTable("categories", {

@@ -26,7 +26,7 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'pos-system' },
   transports: [
-    // Write all logs to console in development
+    // Write all logs to console
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
@@ -36,6 +36,20 @@ const logger = winston.createLogger({
         })
       ),
     }),
+    // Write error logs to file in production
+    ...(process.env.NODE_ENV === 'production' ? [
+      new winston.transports.File({ 
+        filename: 'logs/error.log', 
+        level: 'error',
+        maxsize: 10485760, // 10MB
+        maxFiles: 5,
+      }),
+      new winston.transports.File({ 
+        filename: 'logs/combined.log',
+        maxsize: 10485760, // 10MB
+        maxFiles: 5,
+      }),
+    ] : []),
   ],
 });
 

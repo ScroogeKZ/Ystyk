@@ -22,7 +22,8 @@ import {
   User,
   Settings,
   LogOut,
-  UserCog
+  UserCog,
+  Shield
 } from "lucide-react";
 
 interface SidebarProps {
@@ -82,6 +83,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     { id: "analytics", label: t.sidebar.analytics, icon: BarChart3, roles: ['admin'] },
     { id: "customers", label: t.sidebar.customers, icon: Users, roles: ['admin', 'cashier'] },
     { id: "returns", label: t.sidebar.returns, icon: RotateCcw, roles: ['admin', 'cashier'] },
+    { id: "audit-logs", label: "Журнал аудита", icon: Shield, roles: ['admin'] },
     { id: "users", label: "Пользователи", icon: UserCog, roles: ['admin'] },
   ];
 

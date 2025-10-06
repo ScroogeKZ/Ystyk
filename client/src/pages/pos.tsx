@@ -19,6 +19,7 @@ import CustomersTab from "@/components/pos/customers-tab";
 import ReturnsTab from "@/components/pos/returns-tab";
 import ShiftTab from "@/components/pos/shift-tab";
 import UsersManagement from "@/pages/users-management";
+import AuditLogsTab from "@/components/pos/audit-logs-tab";
 import PaymentModal from "@/components/pos/payment-modal";
 import EnhancedReceiptModal from "@/components/pos/enhanced-receipt-modal";
 import ExpirationAlert from "@/components/pos/expiration-alert";
@@ -66,6 +67,8 @@ export default function POS() {
         return <ReturnsTab />;
       case "shift":
         return <ShiftTab />;
+      case "audit-logs":
+        return <AuditLogsTab />;
       case "users":
         return <UsersManagement />;
       default:

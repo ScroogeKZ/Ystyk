@@ -7,6 +7,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
 import { storage } from "./storage";
 import { insertProductSchema, insertCustomerSchema, insertSupplierSchema, insertTransactionSchema, insertTransactionItemSchema, insertReturnSchema, insertReturnItemSchema, insertShiftSchema, insertGoodsAcceptanceSchema, insertInventoryAuditSchema, insertInventoryAuditItemSchema, insertWriteOffSchema, insertAuditLogSchema, insertCustomerTierSchema, type User } from "@shared/schema";
 import { z } from "zod";
@@ -151,6 +153,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ user: req.user as AuthUser });
     }
     res.status(401).json({ message: "Не авторизован" });
+  });
+
+  // 2FA Routes
+  app.post("/api/auth/2fa/setup", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as AuthUser;
+      const fullUser = await storage.getUser(user.id);
+      
+      if (!fullUser) {
+        return res.status(404).json({ message: "Пользователь не найден" });
+      }
+
+      if (fullUser.twoFactorEnabled) {
+        return res.status(400).json({ message: "2FA уже включен" });
+      }
+
+      const secret = speakeasy.generateSecret({
+        name: `POS System (${fullUser.username})`,
+        length: 32,
+      });
+
+      await storage.updateUser(fullUser.id, { twoFactorSecret: secret.base32 });
+
+      const qrCodeDataURL = await QRCode.toDataURL(secret.otpauth_url || '');
+
+      res.json({
+        secret: secret.base32,
+        qrCode: qrCodeDataURL,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/2fa/enable", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as AuthUser;
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ message: "Необходим код подтверждения" });
+      }
+
+      const fullUser = await storage.getUser(user.id);
+      
+      if (!fullUser || !fullUser.twoFactorSecret) {
+        return res.status(400).json({ message: "2FA не настроен" });
+      }
+
+      const verified = speakeasy.totp.verify({
+        secret: fullUser.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+
+      if (!verified) {
+        return res.status(400).json({ message: "Неверный код" });
+      }
+
+      await storage.updateUser(fullUser.id, { twoFactorEnabled: true });
+
+      res.json({ message: "2FA успешно включен" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/2fa/verify", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as AuthUser;
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ message: "Необходим код подтверждения" });
+      }
+
+      const fullUser = await storage.getUser(user.id);
+      
+      if (!fullUser || !fullUser.twoFactorSecret) {
+        return res.status(400).json({ message: "2FA не настроен" });
+      }
+
+      const verified = speakeasy.totp.verify({
+        secret: fullUser.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+
+      res.json({ verified });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/2fa/disable", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as AuthUser;
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ message: "Необходим код подтверждения для отключения" });
+      }
+
+      const fullUser = await storage.getUser(user.id);
+      
+      if (!fullUser || !fullUser.twoFactorSecret) {
+        return res.status(400).json({ message: "2FA не настроен" });
+      }
+
+      const verified = speakeasy.totp.verify({
+        secret: fullUser.twoFactorSecret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+
+      if (!verified) {
+        return res.status(400).json({ message: "Неверный код" });
+      }
+
+      await storage.updateUser(fullUser.id, { 
+        twoFactorEnabled: false,
+        twoFactorSecret: null 
+      });
+
+      res.json({ message: "2FA успешно отключен" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // User management routes (admin only)
@@ -639,6 +772,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Audit Logs (admin only)
+  app.get("/api/audit-logs", requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+      const { userId, action } = req.query;
+      const logs = await storage.getAuditLogs(
+        userId as string | undefined,
+        action as string | undefined
+      );
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/audit-logs", requireAuth, async (req, res) => {
+    try {
+      const logData = insertAuditLogSchema.parse(req.body);
+      const log = await storage.createAuditLog(logData);
+      res.json(log);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   });
 
