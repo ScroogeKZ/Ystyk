@@ -1,7 +1,8 @@
 import { type User, type InsertUser, type Product, type InsertProduct, type Category, type InsertCategory, type Customer, type InsertCustomer, type Supplier, type InsertSupplier, type Transaction, type InsertTransaction, type TransactionItem, type InsertTransactionItem, type Shift, type InsertShift, type Return, type InsertReturn, type ReturnItem, type InsertReturnItem, type TransactionWithItems, type ProductWithCategory, type ShiftSummary, type GoodsAcceptance, type InsertGoodsAcceptance, type InventoryAudit, type InsertInventoryAudit, type InventoryAuditItem, type InsertInventoryAuditItem, type WriteOff, type InsertWriteOff, type AuditLog, type InsertAuditLog, type CustomerTier, type InsertCustomerTier, users, products, categories, customers, suppliers, shifts, transactions, transactionItems, returns, returnItems, goodsAcceptance, inventoryAudits, inventoryAuditItems, writeOffs, auditLogs, customerTiers } from "@shared/schema";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
-import ws from "ws";
+import pkg from "pg";
+const { Pool } = pkg;
 
 export interface IStorage {
   // Users
@@ -96,10 +97,11 @@ export interface IStorage {
   deleteSupplier(id: string): Promise<boolean>;
 }
 
-const db = drizzle({
-  connection: process.env.DATABASE_URL!,
-  ws: ws,
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
 });
+
+const db = drizzle({ client: pool });
 
 export class PostgresStorage implements IStorage {
   // Users

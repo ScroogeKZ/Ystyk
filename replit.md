@@ -4,6 +4,11 @@
 This is a comprehensive Point of Sale system designed for retail operations. It features a modern interface for managing sales, inventory, customer relationships, returns, and analytics. The system aims to provide a robust and user-friendly solution for businesses to streamline their retail processes.
 
 ## Recent Changes (October 2025)
+- **Database Driver Migration** (Oct 6):
+  - Migrated from drizzle-orm/neon-serverless to drizzle-orm/node-postgres for better compatibility with Replit's PostgreSQL
+  - Fixed SSL certificate issues with local PostgreSQL connection
+  - Updated storage.ts and seed.ts to use native TCP connection via pg Pool
+  - System now running stable with all authentication and API endpoints functional
 - **Security & Logging Enhancements** (Oct 6): 
   - Added SESSION_SECRET environment variable for secure session management
   - Implemented CORS configuration with origin whitelisting for production

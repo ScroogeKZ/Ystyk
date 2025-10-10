@@ -1,12 +1,15 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { users, categories, products } from "@shared/schema";
-import ws from "ws";
+import pkg from "pg";
 import bcrypt from "bcrypt";
 
-const db = drizzle({
-  connection: process.env.DATABASE_URL!,
-  ws: ws,
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
 });
+
+const db = drizzle({ client: pool });
 
 async function seed() {
   console.log("Seeding database...");
